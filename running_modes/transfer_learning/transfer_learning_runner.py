@@ -73,7 +73,8 @@ class TransferLearningRunner(BaseRunningMode):
 
         dataloader = torch.utils.data.DataLoader(dataset, batch_size=self._config.batch_size,
                                                  shuffle=self._config.shuffle_each_epoch,
-                                                 collate_fn=reinvent_dataset.Dataset.collate_fn)
+                                                 collate_fn=reinvent_dataset.Dataset.collate_fn,
+                                                 generator=torch.Generator(device='cuda'))
         return dataloader
 
     def _calculate_loss(self, input_vectors):

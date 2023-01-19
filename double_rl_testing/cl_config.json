@@ -1,0 +1,108 @@
+{
+    "version": 3,
+    "run_type": "curriculum_learning",
+    "model_type": "default",
+    "logging": {
+        "recipient": "local",
+        "logging_frequency": 50,
+        "logging_path": "/home/jeguo/Desktop/Reinvent/double_rl_testing/progress.log",
+        "result_folder": "/home/jeguo/Desktop/Reinvent/double_rl_testing//results"
+    },
+    "parameters": {
+        "prior": "/home/jeguo/Desktop/ReinventCommunity/notebooks/models/random.prior.new",
+        "agent": "/home/jeguo/Desktop/ReinventCommunity/notebooks/models/random.prior.new",
+        "curriculum_type": "automated",
+        "curriculum_strategy": {
+            "name": "user_defined",
+            "max_num_iterations": 1000,
+            "batch_size": 128,
+            "learning_rate": 0.0001,
+            "sigma": 128,
+            "learning_strategy": {
+                "name": "dap_single_query",
+                "parameters": {
+                    "sigma": 120
+                }
+            },
+            "diversity_filter": {
+                "name": "NoFilter",
+                "bucket_size": 25,
+                "minscore": 0.0,
+                "minsimilarity": 0.4
+            },
+            "inception": {
+                "smiles": [],
+                "memory_size": 100,
+                "sample_size": 10
+            },
+            "curriculum_objectives": [
+                {
+                    "scoring_function": {
+                        "name": "custom_product",
+                        "parallel": false,
+                        "parameters": [
+                            {
+                                "component_type": "molecular_weight",
+                                "name": "MW",
+                                "specific_parameters": {
+                                     "transformation": {
+					    "high": 1000,
+					    "low": 200,
+					    "k": 0.25,
+					    "transformation_type": "sigmoid"
+				    }
+                                },
+                                "weight": 1
+                            }
+                        ]
+                    },
+                    "score_threshold": 0.80
+                }
+            ]
+        },
+        "production_strategy": {
+            "name": "standard",
+            "retain_inception": true,
+            "number_of_steps": 300,
+            "batch_size": 128,
+            "learning_rate": 0.0001,
+            "sigma": 128,
+            "learning_strategy": {
+                "name": "dap_single_query",
+                "parameters": {
+                    "sigma": 120
+                }
+            },
+            "diversity_filter": {
+                "name": "IdenticalMurckoScaffold",
+                "bucket_size": 100,
+                "minscore": 0.0,
+                "minsimilarity": 0.4
+            },
+            "inception": {
+                "smiles": [],
+                "memory_size": 100,
+                "sample_size": 10
+            },
+            "scoring_function": {
+                "name": "custom_product",
+                "parallel": false,
+                "parameters": [
+		    {
+			    "component_type": "molecular_weight",
+			    "name": "Higher MW",
+			    "specific_parameters": {
+				    "transformation": {
+					    "high": 1200,
+					    "low": 600,
+					    "k": 0.25,
+					    "transformation_type": "sigmoid"
+				    }
+			    },
+			    "weight": 1
+		    }
+                ]
+            }
+        }
+    }
+}
