@@ -23,8 +23,24 @@ class BaseSingleQueryLearningStrategy(BaseLearningStrategy):
         loss.backward()
 
         self.optimizer.step()
+
+        return negative_actor_nlls, negative_critic_nlls, augmented_nlls
+
+    def run_augmented(self, agent, score: torch.Tensor, smiles, inception):
+        loss, negative_actor_nlls, negative_critic_nlls, augmented_nlls = \
+            self._calculate_augmented_loss(agent, score, smiles, inception)
+
+        self.optimizer.zero_grad()
+        loss.backward()
+
+        self.optimizer.step()
+
         return negative_actor_nlls, negative_critic_nlls, augmented_nlls
 
     @abstractmethod
     def _calculate_loss(self, smiles, sampled_sequences: np.ndarray, score, actor_nlls, inception, agent):
         raise NotImplementedError("_calculate_loss method is not implemented")
+
+    @abstractmethod
+    def _calculate_augmented_loss(self, agent, score, smiles, inception):
+        raise NotImplementedError("Augmented SMILES loss method is not implemented")

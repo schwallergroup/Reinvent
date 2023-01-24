@@ -19,6 +19,11 @@ from running_modes.reinforcement_learning.logging.base_reinforcement_logger impo
 from running_modes.reinforcement_learning.margin_guard import MarginGuard
 from running_modes.utils.general import to_tensor
 
+from rdkit import Chem
+from reinvent_models.reinvent_core.models.vocabulary import SMILESTokenizer
+
+_ST = SMILESTokenizer()
+
 
 class CoreReinforcementRunner(BaseRunningMode):
 
@@ -53,14 +58,37 @@ class CoreReinforcementRunner(BaseRunningMode):
             loss = torch.pow((augmented_likelihood - agent_likelihood), 2)
             loss, agent_likelihood = self._inception_filter(self._agent, loss, agent_likelihood, prior_likelihood,
                                                             self.config.sigma, smiles, score)
+
             loss = loss.mean()
             self._optimizer.zero_grad()
             loss.backward()
             self._optimizer.step()
 
+            augment = True
+            if augment:
+                for _ in range(10):
+                    print(f'----- Augmentation Round {_+1} -----')
+                    # get randomized SMILES
+                    randomized_smiles_list = self._get_randomized_smiles(smiles)
+                    # get prior likelihood of randomized SMILES
+                    prior_likelihood = -self._prior.likelihood_smiles(randomized_smiles_list)
+                    # get agent likelihood of randomized SMILES
+                    agent_likelihood = -self._agent.likelihood_smiles(randomized_smiles_list)
+                    # compute augmented likelihood with the "new" prior likelihood using randomized SMILES
+                    augmented_likelihood = prior_likelihood + self.config.sigma * to_tensor(score)
+                    # compute loss
+                    loss = torch.pow((augmented_likelihood - agent_likelihood), 2)
+                    # experience replay using randomized SMILES
+                    loss, agent_likelihood = self._inception_filter(self._agent, loss, agent_likelihood, prior_likelihood,
+                                                                    self.config.sigma, randomized_smiles_list, score)
+                    loss = loss.mean()
+                    self._optimizer.zero_grad()
+                    loss.backward()
+                    self._optimizer.step()
+
             self._stats_and_chekpoint(score, start_time, step, smiles, score_summary,
-                                                        agent_likelihood, prior_likelihood,
-                                                        augmented_likelihood)
+                                      agent_likelihood, prior_likelihood,
+                                      augmented_likelihood)
 
         self._logger.save_final_state(self._agent, self._diversity_filter)
         self._logger.log_out_input_configuration()
@@ -98,6 +126,7 @@ class CoreReinforcementRunner(BaseRunningMode):
             exp_loss = torch.pow((to_tensor(exp_augmented_likelihood) - exp_agent_likelihood), 2)
             loss = torch.cat((loss, exp_loss), 0)
             agent_likelihood = torch.cat((agent_likelihood, exp_agent_likelihood), 0)
+
         self._inception.add(smiles, score, prior_likelihood)
 
         return loss, agent_likelihood
@@ -112,3 +141,31 @@ class CoreReinforcementRunner(BaseRunningMode):
         self._logger.log_message("Resetting Agent")
         self._logger.log_message(f"Adjusting sigma to: {self.config.sigma}")
         return reset_countdown
+
+    def _get_randomized_smiles(self, smiles_list) -> list:
+        """takes a list of SMILES and returns a list of randomized SMILES"""
+        randomized_smiles_list = []
+        for smiles in smiles_list:
+            if Chem.MolFromSmiles(smiles):
+                try:
+                    randomized_smiles = self._randomize_smiles(smiles)
+                    # there may be tokens in the randomized SMILES that are not in the Vocabulary
+                    # check if the randomized SMILES can be encoded
+                    tokens = _ST.tokenize(randomized_smiles)
+                    encoded = self._prior.get_vocabulary().encode(tokens)
+                    randomized_smiles_list.append(randomized_smiles)
+                except KeyError:
+                    randomized_smiles_list.append(smiles)
+            else:
+                randomized_smiles_list.append(smiles)
+
+        return randomized_smiles_list
+
+    @staticmethod
+    def _randomize_smiles(smiles) -> str:
+        """function from https://github.com/EBjerrum/SMILES-enumeration/blob/master/SmilesEnumerator.py"""
+        mol = Chem.MolFromSmiles(smiles)
+        ans = list(range(mol.GetNumAtoms()))
+        np.random.shuffle(ans)
+        nm = Chem.RenumberAtoms(mol, ans)
+        return Chem.MolToSmiles(nm, canonical=False, isomericSmiles=False)

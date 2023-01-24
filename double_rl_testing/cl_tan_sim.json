@@ -1,0 +1,98 @@
+{
+    "version": 3,
+    "run_type": "curriculum_learning",
+    "model_type": "default",
+    "logging": {
+        "recipient": "local",
+        "logging_frequency": 50,
+        "logging_path": "/home/jeguo/Desktop/Reinvent/double_rl_testing/cl_tan_sim_progress.log",
+        "result_folder": "/home/jeguo/Desktop/Reinvent/double_rl_testing/cl_tan_sim_results"
+    },
+    "parameters": {
+        "prior": "/home/jeguo/Desktop/ReinventCommunity/notebooks/models/random.prior.new",
+        "agent": "/home/jeguo/Desktop/ReinventCommunity/notebooks/models/random.prior.new",
+        "curriculum_type": "automated",
+        "curriculum_strategy": {
+            "name": "user_defined",
+            "max_num_iterations": 500,
+            "batch_size":64,
+            "learning_rate": 0.0001,
+            "sigma": 128,
+            "learning_strategy": {
+                "name": "dap_single_query",
+                "parameters": {
+                    "sigma": 120
+                }
+            },
+            "diversity_filter": {
+                "name": "NoFilter",
+                "bucket_size": 25,
+                "minscore": 0.0,
+                "minsimilarity": 0.4
+            },
+            "inception": {
+                "smiles": [],
+                "memory_size": 100,
+                "sample_size": 10
+            },
+            "curriculum_objectives": [
+                {
+                    "scoring_function": {
+                        "name": "custom_product",
+                        "parallel": false,
+                        "parameters": [
+                            {
+                                "component_type": "tanimoto_similarity",
+                                "name": "tan sim",
+                                "specific_parameters": {
+                                     "smiles": ["Clc4cccc(N3CCN(CCCCOc2ccc1c(NC(=O)CC1)c2)CC3)c4Cl"]
+                                },
+                                "weight": 1
+                            }
+                        ]
+                    },
+                    "score_threshold": 0.80
+                }
+            ]
+        },
+        "production_strategy": {
+            "name": "standard",
+            "retain_inception": true,
+            "number_of_steps": 50,
+            "batch_size": 128,
+            "learning_rate": 0.0001,
+            "sigma": 128,
+            "learning_strategy": {
+                "name": "dap_single_query",
+                "parameters": {
+                    "sigma": 120
+                }
+            },
+            "diversity_filter": {
+                "name": "NoFilter",
+                "bucket_size": 100,
+                "minscore": 0.0,
+                "minsimilarity": 0.4
+            },
+            "inception": {
+                "smiles": [],
+                "memory_size": 100,
+                "sample_size": 10
+            },
+            "scoring_function": {
+                "name": "custom_product",
+                "parallel": false,
+                "parameters": [
+		    {
+			    "component_type": "tanimoto_similarity",
+			    "name": "tan sim",
+			    "specific_parameters": {
+				    "smiles": ["Clc4cccc(N3CCN(CCCCOc2ccc1c(NC(=O)CC1)c2)CC3)c4Cl"]
+			    },
+			    "weight": 1
+		    }
+                ]
+            }
+        }
+    }
+}

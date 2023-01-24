@@ -42,7 +42,13 @@ class ReinventCurriculumStrategy(BaseCurriculumStrategy):
         score, score_summary = self._scoring(scoring_function, sampled.smiles, step)
         # 3. Updating
         agent_likelihood, prior_likelihood, augmented_likelihood = self._updating(sampled, score, self.inception, agent)
-        # 4. Logging
+
+        # 4. Augment SMILES and update Agent again
+        for augmentation in range(10):
+            print(f"----- Curriculum Phase: Augmenting Round {augmentation+1}-----")
+            agent_likelihood, prior_likelihood, augmented_likelihood = self._updating_augmented(agent, score, sampled.smiles, self.inception)
+
+        # 5. Logging
         self._logging(agent=agent, start_time=start_time, step=step,
                       score_summary=score_summary, agent_likelihood=agent_likelihood,
                       prior_likelihood=prior_likelihood, augmented_likelihood=augmented_likelihood)
@@ -66,6 +72,10 @@ class ReinventCurriculumStrategy(BaseCurriculumStrategy):
             self.learning_strategy.run(sampled, score, inception, agent)
         return agent_likelihood, prior_likelihood, augmented_likelihood
 
+    def _updating_augmented(self, agent, score, smiles, inception):
+        agent_likelihood, prior_likelihood, augmented_likelihood = self.learning_strategy.run_augmented(agent, score, smiles, inception)
+        return agent_likelihood, prior_likelihood, augmented_likelihood
+
     def _logging(self, agent: GenerativeModelBase, start_time: float, step: int, score_summary: FinalSummary,
                   agent_likelihood: torch.tensor, prior_likelihood: torch.tensor, augmented_likelihood: torch.tensor):
         report_dto = TimestepDTO(start_time, self._parameters.max_num_iterations, step, score_summary,
@@ -75,3 +85,12 @@ class ReinventCurriculumStrategy(BaseCurriculumStrategy):
     def save_and_flush_memory(self, agent, memory_name: str):
         self._logger.save_merging_state(agent, self._diversity_filter, name=memory_name)
         self._diversity_filter = DiversityFilter(self._parameters.diversity_filter)
+
+    @staticmethod
+    def _initialize_augmented_smiles_tracker(initial_smiles):
+        augmented_smiles_tracker = {}
+        for smiles in initial_smiles:
+            augmented_smiles_tracker[smiles] = []
+
+        return augmented_smiles_tracker
+

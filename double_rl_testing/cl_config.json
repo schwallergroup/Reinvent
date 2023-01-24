@@ -15,7 +15,7 @@
         "curriculum_strategy": {
             "name": "user_defined",
             "max_num_iterations": 1000,
-            "batch_size": 128,
+            "batch_size":64,
             "learning_rate": 0.0001,
             "sigma": 128,
             "learning_strategy": {

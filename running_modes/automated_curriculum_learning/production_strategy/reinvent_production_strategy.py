@@ -52,7 +52,13 @@ class ReinventProductionStrategy(BaseProductionStrategy):
         score, score_summary = self._scoring(scoring_function, sampled.smiles, step)
         # 3. Updating
         agent_likelihood, prior_likelihood, augmented_likelihood = self._updating(sampled, score, self.inception, agent, learning_strategy)
-        # 4. Logging
+        # 4. Augment SMILES and update Agent again
+        for augmentation in range(10):
+            print(f"----- Production Phase: Augmenting Round {augmentation + 1}-----")
+            agent_likelihood, prior_likelihood, augmented_likelihood = self._updating_augmented(learning_strategy, agent,
+                                                                                                score, sampled.smiles,
+                                                                                                self.inception)
+        # 5. Logging
         self._logging(agent=agent, start_time=start_time, step=step,
                       score_summary=score_summary, agent_likelihood=agent_likelihood,
                       prior_likelihood=prior_likelihood, augmented_likelihood=augmented_likelihood)
@@ -73,6 +79,10 @@ class ReinventProductionStrategy(BaseProductionStrategy):
 
     def _updating(self, sampled, score, inception, agent, learning_strategy):
         agent_likelihood, prior_likelihood, augmented_likelihood = learning_strategy.run(sampled, score, inception, agent)
+        return agent_likelihood, prior_likelihood, augmented_likelihood
+
+    def _updating_augmented(self, learning_strategy, agent, score, smiles, inception):
+        agent_likelihood, prior_likelihood, augmented_likelihood = learning_strategy.run_augmented(agent, score, smiles, inception)
         return agent_likelihood, prior_likelihood, augmented_likelihood
 
     def _logging(self, agent: GenerativeModelBase, start_time: float, step: int, score_summary: FinalSummary,

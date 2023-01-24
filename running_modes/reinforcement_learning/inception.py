@@ -13,7 +13,6 @@ class Inception:
         self.memory: pd.DataFrame = pd.DataFrame(columns=['smiles', 'score', 'likelihood'])
         self._load_to_memory(scoring_function, prior, self.configuration.smiles)
 
-
     def _load_to_memory(self, scoring_function, prior, smiles):
         if len(smiles):
             standardized_and_nulls = [self._chemistry.convert_to_rdkit_smiles(smile) for smile in smiles]

@@ -6,6 +6,12 @@ from running_modes.automated_curriculum_learning.learning_strategy.base_single_q
 from running_modes.automated_curriculum_learning.learning_strategy.learning_strategy_configuration import \
     LearningStrategyConfiguration
 
+from rdkit import Chem
+
+from reinvent_models.reinvent_core.models.vocabulary import SMILESTokenizer
+
+_ST = SMILESTokenizer()
+
 
 class DAPSingleQueryStrategy(BaseSingleQueryLearningStrategy):
 
@@ -26,6 +32,26 @@ class DAPSingleQueryStrategy(BaseSingleQueryLearningStrategy):
         loss, agent_likelihood = self._inception_filter(agent, loss, negative_actor_nlls, negative_critic_nlls,
                                                         self._sigma, smiles, score, inception)
         loss = loss.mean()
+
+        return loss, negative_actor_nlls, negative_critic_nlls, augmented_nlls
+
+    def _calculate_augmented_loss(self, agent, score, smiles, inception):
+        """implementation of Double Reinforcement Learning: https://arxiv.org/pdf/2210.12458.pdf"""
+        # get randomized SMILES
+        randomized_smiles_list = self._get_randomized_smiles(smiles)
+        # obtain critic (prior) likelihoods of randomized SMILES
+        negative_critic_nlls = -self.critic_model.likelihood_smiles(randomized_smiles_list)
+        # obtain actor (agent) likelihood of randomized SMILES
+        negative_actor_nlls = -agent.likelihood_smiles(randomized_smiles_list)
+        # compute augmented likelihood with the "new" prior likelihood using randomized SMILES
+        augmented_nlls = negative_critic_nlls + self._sigma * self._to_tensor(score)
+        # compute loss
+        loss = torch.pow((augmented_nlls - negative_actor_nlls), 2)
+        # experience replay using randomized SMILES
+        loss, agent_likelihood = self._inception_filter(agent, loss, negative_actor_nlls, negative_critic_nlls,
+                                                        self._sigma, randomized_smiles_list, score, inception)
+        loss = loss.mean()
+
         return loss, negative_actor_nlls, negative_critic_nlls, augmented_nlls
 
     def _inception_filter(self, agent, loss, agent_likelihood, prior_likelihood, sigma, smiles, score, inception):
@@ -39,3 +65,31 @@ class DAPSingleQueryStrategy(BaseSingleQueryLearningStrategy):
                 agent_likelihood = torch.cat((agent_likelihood, exp_agent_likelihood), 0)
             inception.add(smiles, score, prior_likelihood)
         return loss, agent_likelihood
+
+    def _get_randomized_smiles(self, smiles_list) -> list:
+        """takes a list of SMILES and returns a list of randomized SMILES"""
+        randomized_smiles_list = []
+        for smiles in smiles_list:
+            if Chem.MolFromSmiles(smiles):
+                try:
+                    randomized_smiles = self._randomize_smiles(smiles)
+                    # there may be tokens in the randomized SMILES that are not in the Vocabulary
+                    # check if the randomized SMILES can be encoded
+                    tokens = _ST.tokenize(randomized_smiles)
+                    encoded = self.critic_model.get_vocabulary().encode(tokens)
+                    randomized_smiles_list.append(randomized_smiles)
+                except KeyError:
+                    randomized_smiles_list.append(smiles)
+            else:
+                randomized_smiles_list.append(smiles)
+
+        return randomized_smiles_list
+
+    @staticmethod
+    def _randomize_smiles(smiles) -> str:
+        """function from https://github.com/EBjerrum/SMILES-enumeration/blob/master/SmilesEnumerator.py"""
+        mol = Chem.MolFromSmiles(smiles)
+        ans = list(range(mol.GetNumAtoms()))
+        np.random.shuffle(ans)
+        nm = Chem.RenumberAtoms(mol, ans)
+        return Chem.MolToSmiles(nm, canonical=False, isomericSmiles=False)
