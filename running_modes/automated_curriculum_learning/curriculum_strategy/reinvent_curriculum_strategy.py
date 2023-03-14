@@ -16,6 +16,9 @@ from running_modes.automated_curriculum_learning.curriculum_strategy.base_curric
 from running_modes.automated_curriculum_learning.dto import SampledBatchDTO, CurriculumOutcomeDTO, TimestepDTO
 
 
+import pandas as pd
+
+
 class ReinventCurriculumStrategy(BaseCurriculumStrategy):
 
     def run(self) -> CurriculumOutcomeDTO:
@@ -23,6 +26,8 @@ class ReinventCurriculumStrategy(BaseCurriculumStrategy):
         self.disable_prior_gradients()
 
         for item_id, sf_configuration in enumerate(self._parameters.curriculum_objectives):
+            if item_id == 1:
+                self.inception.memory = pd.DataFrame({})
             start_time = time.time()
             scoring_function = self._setup_scoring_function(item_id)
             step_counter = self.promote_agent(agent=self._agent, scoring_function=scoring_function,
@@ -42,12 +47,11 @@ class ReinventCurriculumStrategy(BaseCurriculumStrategy):
         score, score_summary = self._scoring(scoring_function, sampled.smiles, step)
         # 3. Updating
         agent_likelihood, prior_likelihood, augmented_likelihood = self._updating(sampled, score, self.inception, agent)
-
         # 4. Augment SMILES and update Agent again
-        for augmentation in range(10):
-            print(f"----- Curriculum Phase: Augmenting Round {augmentation+1}-----")
-            agent_likelihood, prior_likelihood, augmented_likelihood = self._updating_augmented(agent, score, sampled.smiles, self.inception)
-
+        if self.double_loop_augment:
+            print("we are augmenting")
+            for _ in range(self.augmentation_rounds):
+                agent_likelihood, prior_likelihood, augmented_likelihood = self._updating_augmented(agent, score, sampled.smiles, self.inception, self._prior, self.augmented_memory)
         # 5. Logging
         self._logging(agent=agent, start_time=start_time, step=step,
                       score_summary=score_summary, agent_likelihood=agent_likelihood,
@@ -61,7 +65,7 @@ class ReinventCurriculumStrategy(BaseCurriculumStrategy):
         sampled_sequences = sampling_action.run()
         return sampled_sequences
 
-    def _scoring(self, scoring_function, smiles: List[str], step) -> Tuple[np.ndarray, FinalSummary] :
+    def _scoring(self, scoring_function, smiles: List[str], step) -> Tuple[np.ndarray, FinalSummary]:
         score_summary = scoring_function.get_final_score_for_step(smiles, step)
         dto = UpdateDiversityFilterDTO(score_summary, [], step)
         score = self._diversity_filter.update_score(dto)
@@ -72,8 +76,8 @@ class ReinventCurriculumStrategy(BaseCurriculumStrategy):
             self.learning_strategy.run(sampled, score, inception, agent)
         return agent_likelihood, prior_likelihood, augmented_likelihood
 
-    def _updating_augmented(self, agent, score, smiles, inception):
-        agent_likelihood, prior_likelihood, augmented_likelihood = self.learning_strategy.run_augmented(agent, score, smiles, inception)
+    def _updating_augmented(self, agent, score, smiles, inception, prior, augmented_memory):
+        agent_likelihood, prior_likelihood, augmented_likelihood = self.learning_strategy.run_augmented(agent, score, smiles, inception, prior, augmented_memory)
         return agent_likelihood, prior_likelihood, augmented_likelihood
 
     def _logging(self, agent: GenerativeModelBase, start_time: float, step: int, score_summary: FinalSummary,

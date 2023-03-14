@@ -47,3 +47,11 @@ class Inception:
             prior_likelihood = sampled["likelihood"].values
             return smiles, scores, prior_likelihood
         return [], [], []
+
+    def augmented_memory_replay(self, prior) -> Tuple[List[str], np.array, np.array]:
+        smiles = self.memory["smiles"].values
+        # randomize the smiles
+        randomized_smiles_list = self._chemistry._get_randomized_smiles(smiles, prior)
+        scores = self.memory["score"].values
+        prior_likelihood = self.memory["likelihood"].values
+        return randomized_smiles_list, scores, prior_likelihood

@@ -29,6 +29,13 @@ class BaseProductionStrategy(ABC):
         self.inception = inception
         self._scoring_function = scoring_function
 
+        # SMILES augmentation attributes
+        self.double_loop_augment = configuration.double_loop_augment
+        self.augmented_memory = configuration.augmented_memory
+        self.augmentation_rounds = configuration.augmentation_rounds
+        # SMILES randomization functions from reinvent-chemistry
+        self._chemistry = Conversions()
+
     @abstractmethod
     def run(self, cl_agent: GenerativeModelBase, steps_so_far: int) -> CurriculumOutcomeDTO:
         raise NotImplementedError("run() method is not implemented ")

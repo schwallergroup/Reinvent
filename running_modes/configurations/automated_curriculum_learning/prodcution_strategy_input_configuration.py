@@ -25,3 +25,6 @@ class ProductionStrategyInputConfiguration:
     sigma: float = 120
     number_of_steps: int = 100
     distance_threshold: float = 100.
+    double_loop_augment: bool = True
+    augmented_memory: bool = False
+    augmentation_rounds: int = 10

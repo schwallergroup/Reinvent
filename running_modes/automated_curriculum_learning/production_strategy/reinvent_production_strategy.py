@@ -45,7 +45,7 @@ class ReinventProductionStrategy(BaseProductionStrategy):
             param.requires_grad = False
 
     def take_step(self, agent: GenerativeModelBase, learning_strategy, scoring_function: BaseScoringFunction,
-                  step:int, start_time: float) -> float:
+                  step: int, start_time: float) -> float:
         # 1. Sampling
         sampled = self._sampling(agent)
         # 2. Scoring
@@ -53,11 +53,12 @@ class ReinventProductionStrategy(BaseProductionStrategy):
         # 3. Updating
         agent_likelihood, prior_likelihood, augmented_likelihood = self._updating(sampled, score, self.inception, agent, learning_strategy)
         # 4. Augment SMILES and update Agent again
-        for augmentation in range(10):
-            print(f"----- Production Phase: Augmenting Round {augmentation + 1}-----")
-            agent_likelihood, prior_likelihood, augmented_likelihood = self._updating_augmented(learning_strategy, agent,
+        if self.double_loop_augment:
+            for _ in range(self.augmentation_rounds):
+                print('we are augmenting in production')
+                agent_likelihood, prior_likelihood, augmented_likelihood = self._updating_augmented(learning_strategy, agent,
                                                                                                 score, sampled.smiles,
-                                                                                                self.inception)
+                                                                                                self.inception, self._prior, self.augmented_memory)
         # 5. Logging
         self._logging(agent=agent, start_time=start_time, step=step,
                       score_summary=score_summary, agent_likelihood=agent_likelihood,
@@ -81,8 +82,8 @@ class ReinventProductionStrategy(BaseProductionStrategy):
         agent_likelihood, prior_likelihood, augmented_likelihood = learning_strategy.run(sampled, score, inception, agent)
         return agent_likelihood, prior_likelihood, augmented_likelihood
 
-    def _updating_augmented(self, learning_strategy, agent, score, smiles, inception):
-        agent_likelihood, prior_likelihood, augmented_likelihood = learning_strategy.run_augmented(agent, score, smiles, inception)
+    def _updating_augmented(self, learning_strategy, agent, score, smiles, inception, prior, augmented_memory):
+        agent_likelihood, prior_likelihood, augmented_likelihood = learning_strategy.run_augmented(agent, score, smiles, inception, prior, augmented_memory)
         return agent_likelihood, prior_likelihood, augmented_likelihood
 
     def _logging(self, agent: GenerativeModelBase, start_time: float, step: int, score_summary: FinalSummary,

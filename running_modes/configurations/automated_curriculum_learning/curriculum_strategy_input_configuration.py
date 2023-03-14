@@ -24,3 +24,6 @@ class CurriculumStrategyInputConfiguration:
     learning_rate: float = 0.0001
     sigma: float = 120.
     distance_threshold: float = 100.
+    double_loop_augment: bool = True
+    augmented_memory: bool = False
+    augmentation_rounds: int = 10

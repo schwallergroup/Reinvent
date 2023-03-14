@@ -18,6 +18,9 @@
             "batch_size":64,
             "learning_rate": 0.0001,
             "sigma": 128,
+	    "double_loop_augment": true,
+	    "augmented_memory": true,
+	    "augmentation_rounds": 10,
             "learning_strategy": {
                 "name": "dap_single_query",
                 "parameters": {
@@ -62,6 +65,9 @@
             "batch_size": 128,
             "learning_rate": 0.0001,
             "sigma": 128,
+	    "double_loop_augment": true,
+	    "augmented_memory": true,
+	    "augmentation_rounds": 10,
             "learning_strategy": {
                 "name": "dap_single_query",
                 "parameters": {

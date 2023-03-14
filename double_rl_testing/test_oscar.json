@@ -1,0 +1,63 @@
+{
+    "logging": {
+        "job_id": "demo",
+        "job_name": "Reinforcement learning demo",
+        "logging_frequency": 50,
+        "logging_path": "/home/jeguo/Desktop/Reinvent/double_rl_testing/stereo_progress.log",
+        "recipient": "local",
+        "result_folder": "/home/jeguo/Desktop/Reinvent/double_rl_testing/stereo_results",
+        "sender": "http://127.0.0.1"
+    },
+    "model_type": "default",
+    "parameters": {
+        "diversity_filter": {
+            "minscore": 0.4,
+            "minsimilarity": 0.4,
+            "name": "NoFilter",
+            "nbmax": 25
+        },
+        "inception": {
+            "memory_size": 100,
+            "sample_size": 10,
+            "smiles": []
+        },
+        "reinforcement_learning": {
+            "agent": "/home/jeguo/Desktop/REINVENT_Organocatalyst/OSCAR_Prior/Prior_Stereochemistry/augmented.oscar.dhbd.prior.2",
+            "batch_size": 128,
+            "learning_rate": 0.0001,
+            "margin_threshold": 50,
+            "n_steps": 500,
+            "prior": "/home/jeguo/Desktop/REINVENT_Organocatalyst/OSCAR_Prior/Prior_Stereochemistry/augmented.oscar.dhbd.prior.2",
+            "sigma": 128
+        },
+        "scoring_function": {
+            "name": "custom_product",
+            "parallel": false,
+            "parameters": [
+                {
+                    "component_type": "tanimoto_similarity",
+                    "name": "tan sim",
+                    "specific_parameters": {
+			    "smiles": ["Clc4cccc(N3CCN(CCCCOc2ccc1c(NC(=O)CC1)c2)CC3)c4Cl"]
+
+                    },
+                    "weight": 1
+                }, {
+                    "component_type": "number_of_stereo_centers",
+                    "name": "stereo",
+                    "specific_parameters": {
+                            "transformation": {
+					    "high": 2,
+					    "low": -1,
+					    "k": 0.25,
+					    "transformation_type": "sigmoid"
+				    }
+                    },
+                    "weight": 1
+                }
+            ]
+        }
+    },
+    "run_type": "reinforcement_learning",
+    "version": 3
+}

@@ -36,6 +36,13 @@ class BaseCurriculumStrategy(ABC):
         self._diversity_filter = diversity_filter
         self.inception = inception
 
+        # SMILES augmentation attributes
+        self.double_loop_augment = configuration.double_loop_augment
+        self.augmented_memory = configuration.augmented_memory
+        self.augmentation_rounds = configuration.augmentation_rounds
+        # SMILES randomization functions from reinvent-chemistry
+        self._chemistry = Conversions()
+
     @abstractmethod
     def run(self) -> CurriculumOutcomeDTO:
         raise NotImplementedError("run() method is not implemented ")
