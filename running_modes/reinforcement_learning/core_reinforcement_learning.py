@@ -21,6 +21,10 @@ from running_modes.utils.general import to_tensor
 
 from reinvent_chemistry.conversions import Conversions
 
+from rdkit import Chem
+from rdkit.Chem.Scaffolds.MurckoScaffold import GetScaffoldForMol
+from copy import deepcopy
+
 
 class CoreReinforcementRunner(BaseRunningMode):
 
@@ -38,7 +42,7 @@ class CoreReinforcementRunner(BaseRunningMode):
         self._margin_guard = MarginGuard(self)
         self._optimizer = torch.optim.Adam(self._agent.get_network_parameters(), lr=self.config.learning_rate)
 
-        # SMILES augmentation attributes
+        # SMILES augmentation hyperparameters
         self.double_loop_augment = configuration.double_loop_augment
         self.augmented_memory = configuration.augmented_memory
         self.augmentation_rounds = configuration.augmentation_rounds
@@ -69,6 +73,7 @@ class CoreReinforcementRunner(BaseRunningMode):
             self._optimizer.step()
 
             if self.double_loop_augment:
+                self._selective_memory_purge(smiles, score)
                 for _ in range(self.augmentation_rounds):
                     # get randomized SMILES
                     randomized_smiles_list = self._chemistry._get_randomized_smiles(smiles, self._prior)
@@ -145,4 +150,29 @@ class CoreReinforcementRunner(BaseRunningMode):
         self._logger.log_message("Resetting Agent")
         self._logger.log_message(f"Adjusting sigma to: {self.config.sigma}")
         return reset_countdown
+
+    def _selective_memory_purge(self, smiles, score):
+        zero_score_indices = np.where(score == 0.)[0]
+        smiles_to_purge = smiles[zero_score_indices]
+        scaffolds_to_purge = [self.get_scaffold(smiles) for smiles in smiles_to_purge]
+        purged_memory = deepcopy(self._inception.memory)
+        purged_memory['scaffolds'] = purged_memory['smiles'].apply(self.get_scaffold)
+        purged_memory = purged_memory.loc[~purged_memory['scaffolds'].isin(scaffolds_to_purge)]
+        purged_memory.drop('scaffolds', axis=1, inplace=True)
+
+        self._inception.memory = purged_memory
+
+    @staticmethod
+    def get_scaffold(smiles):
+        mol = Chem.MolFromSmiles(smiles)
+        if mol:
+            try:
+                scaffold = GetScaffoldForMol(mol)
+                return Chem.MolToSmiles(scaffold)
+            except Exception:
+                return ''
+        else:
+            return ''
+
+
 
