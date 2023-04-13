@@ -33,6 +33,7 @@ class BaseProductionStrategy(ABC):
         self.double_loop_augment = configuration.double_loop_augment
         self.augmented_memory = configuration.augmented_memory
         self.augmentation_rounds = configuration.augmentation_rounds
+        self.selective_memory_purge = configuration.selective_memory_purge
         # SMILES randomization functions from reinvent-chemistry
         self._chemistry = Conversions()
 

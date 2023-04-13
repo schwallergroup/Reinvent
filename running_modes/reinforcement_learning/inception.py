@@ -23,6 +23,7 @@ class Inception:
         unique_df = self.memory.drop_duplicates(subset=["smiles"])
         sorted_df = unique_df.sort_values('score', ascending=False)
         self.memory = sorted_df.head(self.configuration.memory_size)
+        self.memory = self.memory.loc[self.memory['score'] != 0.0]
 
     def evaluate_and_add(self, smiles, scoring_function, prior):
         if len(smiles) > 0:
@@ -53,5 +54,7 @@ class Inception:
         # randomize the smiles
         randomized_smiles_list = self._chemistry._get_randomized_smiles(smiles, prior)
         scores = self.memory["score"].values
-        prior_likelihood = self.memory["likelihood"].values
+        prior_likelihood = -prior.likelihood_smiles(randomized_smiles_list).cpu()
         return randomized_smiles_list, scores, prior_likelihood
+
+

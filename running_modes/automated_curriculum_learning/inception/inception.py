@@ -53,5 +53,6 @@ class Inception:
         # randomize the smiles
         randomized_smiles_list = self._chemistry._get_randomized_smiles(smiles, prior)
         scores = self.memory["score"].values
-        prior_likelihood = self.memory["likelihood"].values
+        #prior_likelihood = self.memory["likelihood"].values
+        prior_likelihood = -prior.likelihood_smiles(randomized_smiles_list).cpu()
         return randomized_smiles_list, scores, prior_likelihood

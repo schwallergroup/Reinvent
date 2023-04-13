@@ -13,5 +13,6 @@ class ReinforcementLearningConfiguration:
     double_loop_augment: bool = True
     augmented_memory: bool = False
     augmentation_rounds: int = 10
+    selective_memory_purge: bool = True
 
 
