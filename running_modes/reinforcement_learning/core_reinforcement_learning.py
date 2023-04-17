@@ -223,8 +223,8 @@ class CoreReinforcementRunner(BaseRunningMode):
             # add inception to the best Agent loss because it isn't scaled down
             # pass the current Agent and current Agent's sampled SMILES because we want to update this Agent
             # the only thing we are passing that belongs to the best Agent is the best Agent loss
-            #best_agent_loss, best_agent_likelihood = self._inception_filter(self._agent, best_agent_loss, agent_likelihood, prior_likelihood,
-                                                                            #smiles, score, self._prior, override=True)
+            best_agent_loss, best_agent_likelihood = self._inception_filter(self._agent, best_agent_loss, agent_likelihood, prior_likelihood,
+                                                                            smiles, score, self._prior, override=True)
 
             # add experience replay before taking the mean
             best_agent_loss = best_agent_loss.mean()
