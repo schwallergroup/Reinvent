@@ -183,11 +183,12 @@ class CoreReinforcementRunner(BaseRunningMode):
         self._logger.log_out_inception(self._inception)
         """
 
+
         # reproducing BAR
         from copy import deepcopy
         # initialize the best Agent
         self.best_agent = deepcopy(self._agent)
-        self.best_average_score = 0
+        self.best_score_summary = None
         # use alpha = 0.5
         self.alpha = 0.5
         # potentially update the best Agent every 5 epochs
@@ -211,16 +212,17 @@ class CoreReinforcementRunner(BaseRunningMode):
             agent_likelihood = -agent_likelihood
             prior_likelihood = -self._prior.likelihood(seqs)
             augmented_likelihood = prior_likelihood + self.config.sigma * to_tensor(score)
-            current_agent_loss = torch.pow((augmented_likelihood - agent_likelihood), 2).mean()
+            current_agent_loss = (1 - self.alpha) * torch.pow((augmented_likelihood - agent_likelihood), 2).mean()
 
             # compute loss between the best Agent and current Agent
             best_agent_likelihood = -best_agent_likelihood
             # this is the likelihood of the SMILES sampled by the *BAR Agent* as computed by the *current* Agent
             current_agent_likelihood = -self._agent.likelihood(best_seqs)
             best_augmented_likelihood = best_agent_likelihood + self.config.sigma * to_tensor(best_score)
-            best_agent_loss = torch.pow((best_augmented_likelihood - current_agent_likelihood), 2)
+            best_agent_loss = self.alpha * torch.pow((best_augmented_likelihood - current_agent_likelihood), 2)
 
-            # add inception to the best Agent loss because it isn't scaled down
+            # add experience replay (as we are using alpha=0.5, it doesn't matter to which loss we are concatenating
+            # the experience replay loss since they are both scaled down by 0.5). This matters if alpha deviates from 0.5 --> essentially how much onus to place on experience replay loss)
             # pass the current Agent and current Agent's sampled SMILES because we want to update this Agent
             # the only thing we are passing that belongs to the best Agent is the best Agent loss
             best_agent_loss, best_agent_likelihood = self._inception_filter(self._agent, best_agent_loss, agent_likelihood, prior_likelihood,
@@ -230,7 +232,7 @@ class CoreReinforcementRunner(BaseRunningMode):
             best_agent_loss = best_agent_loss.mean()
 
             # compute the BAR loss
-            BAR_loss = (1 - self.alpha) * current_agent_loss + best_agent_loss
+            BAR_loss = current_agent_loss + best_agent_loss
 
             self._optimizer.zero_grad()
             BAR_loss.backward()
@@ -241,11 +243,17 @@ class CoreReinforcementRunner(BaseRunningMode):
                                       augmented_likelihood)
 
             if step % self.update_frequency == 0:
-                if np.mean(score) > self.best_average_score:
-                    print('updating agent')
-                    self.best_average_score = np.mean(score)
+                if self.best_score_summary is not None:
+                    penalized_best_average_score = np.mean(self.bar_scores_penalization(self.best_score_summary))
+                    if np.mean(score) > penalized_best_average_score:
+                        self.best_score_summary = score_summary
+                        # new best Agent
+                        self.best_agent = deepcopy(self._agent)
+                else:
+                    self.best_score_summary = score_summary
                     # new best Agent
                     self.best_agent = deepcopy(self._agent)
+
 
 
     def _disable_prior_gradients(self):
@@ -326,5 +334,17 @@ class CoreReinforcementRunner(BaseRunningMode):
         else:
             return ''
 
+    def bar_scores_penalization(self, score_summary: FinalSummary) -> np.array:
+        score_summary = deepcopy(score_summary)
+        scores = score_summary.total_score
+        smiles = score_summary.scored_smiles
 
+        for i in score_summary.valid_idxs:
+            smile = self._chemistry.convert_to_rdkit_smiles(smiles[i])
+            scaffold = self.get_scaffold(smile)
+
+            if scores[i] >= self._diversity_filter.parameters.minscore:
+                scores[i] = self._diversity_filter._penalize_score(scaffold, scores[i])
+
+        return scores
 
