@@ -4,6 +4,7 @@ from typing import Tuple, List
 
 from running_modes.configurations.reinforcement_learning.inception_configuration import InceptionConfiguration
 from reinvent_chemistry.conversions import Conversions
+from copy import deepcopy
 
 
 class Inception:
@@ -24,6 +25,29 @@ class Inception:
         sorted_df = unique_df.sort_values('score', ascending=False)
         self.memory = sorted_df.head(self.configuration.memory_size)
         self.memory = self.memory.loc[self.memory['score'] != 0.0]
+        if self.configuration.augmented_memory_mode_collapse_guard:
+            self._mode_collapse_guard()
+
+    def _mode_collapse_guard(self):
+        # in *pure* exploitation scenarios where Selective Memory Purge is not used, the following heuristic
+        # pre-emptively guards against rare cases of mode collapse at suboptimal minima
+        sliced_memory = self.memory.head(int(self.configuration.memory_size*0.7))
+        if (sliced_memory['score'].nunique() == 1) and (int(sliced_memory['score'].iloc[0]) != 1):
+            print("---- Pre-emptively guarding against mode collapse: purging buffer -----")
+            self.memory = pd.DataFrame(columns=['smiles', 'score', 'likelihood'])
+
+    def selective_memory_purge(self, smiles, score):
+        zero_score_indices = np.where(score == 0.)[0]
+        if len(zero_score_indices) > 0:
+            smiles_to_purge = smiles[zero_score_indices]
+            scaffolds_to_purge = [self._chemistry.get_scaffold(smiles) for smiles in smiles_to_purge]
+            purged_memory = deepcopy(self.memory)
+            purged_memory['scaffolds'] = purged_memory['smiles'].apply(self._chemistry.get_scaffold)
+            purged_memory = purged_memory.loc[~purged_memory['scaffolds'].isin(scaffolds_to_purge)]
+            purged_memory.drop('scaffolds', axis=1, inplace=True)
+            self.memory = purged_memory
+        else:
+            return
 
     def evaluate_and_add(self, smiles, scoring_function, prior):
         if len(smiles) > 0:
@@ -36,7 +60,7 @@ class Inception:
     def add(self, smiles, score, neg_likelihood):
         # NOTE: likelihood should be already negative
         df = pd.DataFrame({"smiles": smiles, "score": score, "likelihood": neg_likelihood.detach().cpu().numpy()})
-        self.memory = self.memory.append(df)
+        self.memory = pd.concat([self.memory, df])
         self._purge_memory()
 
     def sample(self) -> Tuple[List[str], np.array, np.array]:
@@ -50,11 +74,14 @@ class Inception:
         return [], [], []
 
     def augmented_memory_replay(self, prior) -> Tuple[List[str], np.array, np.array]:
-        smiles = self.memory["smiles"].values
-        # randomize the smiles
-        randomized_smiles_list = self._chemistry._get_randomized_smiles(smiles, prior)
-        scores = self.memory["score"].values
-        prior_likelihood = -prior.likelihood_smiles(randomized_smiles_list).cpu()
-        return randomized_smiles_list, scores, prior_likelihood
+        if len(self.memory) != 0:
+            smiles = self.memory["smiles"].values
+            # randomize the smiles
+            randomized_smiles_list = self._chemistry.get_randomized_smiles(smiles, prior)
+            scores = self.memory["score"].values
+            prior_likelihood = -prior.likelihood_smiles(randomized_smiles_list).cpu()
+            return randomized_smiles_list, scores, prior_likelihood
+        else:
+            return [], [], []
 
 

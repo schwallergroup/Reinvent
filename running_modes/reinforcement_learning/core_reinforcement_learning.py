@@ -21,12 +21,7 @@ from running_modes.utils.general import to_tensor
 
 from reinvent_chemistry.conversions import Conversions
 
-# TODO: need to move these imports elsewhere
-from rdkit import Chem
-from rdkit.Chem.Scaffolds.MurckoScaffold import GetScaffoldForMol
 from copy import deepcopy
-
-import pandas as pd
 
 
 class CoreReinforcementRunner(BaseRunningMode):
@@ -60,7 +55,6 @@ class CoreReinforcementRunner(BaseRunningMode):
         start_time = time.time()
         self._disable_prior_gradients()
 
-        """
         for step in range(self.config.n_steps):
             seqs, smiles, agent_likelihood = self._sample_unique_sequences(self._agent, self.config.batch_size)
             # switch signs
@@ -81,10 +75,10 @@ class CoreReinforcementRunner(BaseRunningMode):
 
             if self.double_loop_augment:
                 if self.selective_memory_purge:
-                    self._selective_memory_purge(smiles, score)
+                    self._inception.selective_memory_purge(smiles, score)
                 for _ in range(self.augmentation_rounds):
                     # get randomized SMILES
-                    randomized_smiles_list = self._chemistry._get_randomized_smiles(smiles, self._prior)
+                    randomized_smiles_list = self._chemistry.get_randomized_smiles(smiles, self._prior)
                     # get prior likelihood of randomized SMILES
                     prior_likelihood = -self._prior.likelihood_smiles(randomized_smiles_list)
                     # get agent likelihood of randomized SMILES
@@ -107,44 +101,6 @@ class CoreReinforcementRunner(BaseRunningMode):
         self._logger.save_final_state(self._agent, self._diversity_filter)
         self._logger.log_out_input_configuration()
         self._logger.log_out_inception(self._inception)
-        """
-        """
-        # reproducing Double Loop RL
-        for step in range(self.config.n_steps):
-            seqs, smiles, agent_likelihood = self._sample_unique_sequences(self._agent, self.config.batch_size)
-            score_summary: FinalSummary = self._scoring_function.get_final_score_for_step(smiles, step)
-            score = self._diversity_filter.update_score(score_summary, step)
-            if self.double_loop_augment:
-                for _ in range(self.augmentation_rounds):
-                    # get randomized SMILES
-                    randomized_smiles_list = self._chemistry._get_randomized_smiles(smiles, self._prior)
-                    # get prior likelihood of randomized SMILES
-                    prior_likelihood = -self._prior.likelihood_smiles(randomized_smiles_list)
-                    # get agent likelihood of randomized SMILES
-                    agent_likelihood = -self._agent.likelihood_smiles(randomized_smiles_list)
-                    # compute augmented likelihood with the "new" prior likelihood using randomized SMILES
-                    augmented_likelihood = prior_likelihood + self.config.sigma * to_tensor(score)
-                    # compute loss
-                    loss = torch.pow((augmented_likelihood - agent_likelihood), 2)
-                    # experience replay using randomized SMILES
-                    #if _ == (self.augmentation_rounds - 1):
-                    #if _ == 0:
-                    loss, agent_likelihood = self._inception_filter(self._agent, loss, agent_likelihood,
-                                                                    prior_likelihood, randomized_smiles_list, score,
-                                                                    self._prior)
-                    loss = loss.mean()
-                    self._optimizer.zero_grad()
-                    loss.backward()
-                    self._optimizer.step()
-
-            self._stats_and_chekpoint(score, start_time, step, smiles, score_summary,
-                                      agent_likelihood, prior_likelihood,
-                                      augmented_likelihood)
-
-        self._logger.save_final_state(self._agent, self._diversity_filter)
-        self._logger.log_out_input_configuration()
-        self._logger.log_out_inception(self._inception)
-        """
 
         """
         # reproducing AHC
@@ -183,7 +139,7 @@ class CoreReinforcementRunner(BaseRunningMode):
         self._logger.log_out_inception(self._inception)
         """
 
-
+        """
         # reproducing BAR
         from copy import deepcopy
         # initialize the best Agent
@@ -253,7 +209,7 @@ class CoreReinforcementRunner(BaseRunningMode):
                     self.best_score_summary = score_summary
                     # new best Agent
                     self.best_agent = deepcopy(self._agent)
-
+        """
 
 
     def _disable_prior_gradients(self):
@@ -289,7 +245,8 @@ class CoreReinforcementRunner(BaseRunningMode):
             exp_agent_likelihood = -agent.likelihood_smiles(exp_smiles)
             exp_augmented_likelihood = exp_prior_likelihood + self.config.sigma * exp_scores
             exp_loss = torch.pow((to_tensor(exp_augmented_likelihood) - exp_agent_likelihood), 2)
-            loss = torch.cat((loss, exp_loss), 0)
+            #loss = torch.cat((loss, exp_loss), 0)
+            loss = exp_loss
             agent_likelihood = torch.cat((agent_likelihood, exp_agent_likelihood), 0)
 
         self._inception.add(smiles, score, prior_likelihood)
@@ -307,33 +264,6 @@ class CoreReinforcementRunner(BaseRunningMode):
         self._logger.log_message(f"Adjusting sigma to: {self.config.sigma}")
         return reset_countdown
 
-    def _selective_memory_purge(self, smiles, score):
-        # TODO: move this to inception
-        zero_score_indices = np.where(score == 0.)[0]
-        if len(zero_score_indices) > 0:
-            smiles_to_purge = smiles[zero_score_indices]
-            scaffolds_to_purge = [self.get_scaffold(smiles) for smiles in smiles_to_purge]
-            purged_memory = deepcopy(self._inception.memory)
-            purged_memory['scaffolds'] = purged_memory['smiles'].apply(self.get_scaffold)
-            purged_memory = purged_memory.loc[~purged_memory['scaffolds'].isin(scaffolds_to_purge)]
-            purged_memory.drop('scaffolds', axis=1, inplace=True)
-            self._inception.memory = purged_memory
-        else:
-            return
-
-    @staticmethod
-    def get_scaffold(smiles):
-        # TODO: this probably exists in reinvent-chemistry or maybe it's scoring already, otherwise put this there
-        mol = Chem.MolFromSmiles(smiles)
-        if mol:
-            try:
-                scaffold = GetScaffoldForMol(mol)
-                return Chem.MolToSmiles(scaffold)
-            except Exception:
-                return ''
-        else:
-            return ''
-
     def bar_scores_penalization(self, score_summary: FinalSummary) -> np.array:
         score_summary = deepcopy(score_summary)
         scores = score_summary.total_score
@@ -341,7 +271,7 @@ class CoreReinforcementRunner(BaseRunningMode):
 
         for i in score_summary.valid_idxs:
             smile = self._chemistry.convert_to_rdkit_smiles(smiles[i])
-            scaffold = self.get_scaffold(smile)
+            scaffold = self._chemistry.get_scaffold(smile)
 
             if scores[i] >= self._diversity_filter.parameters.minscore:
                 scores[i] = self._diversity_filter._penalize_score(scaffold, scores[i])
