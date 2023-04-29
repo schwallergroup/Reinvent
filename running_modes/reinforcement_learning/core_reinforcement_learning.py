@@ -205,9 +205,13 @@ class CoreReinforcementRunner(BaseRunningMode):
                         self.best_score_summary = score_summary
                         # new best Agent
                         self.best_agent = deepcopy(self._agent)
+
+            self._logger.save_final_state(self._agent, self._diversity_filter)
+            self._logger.log_out_input_configuration()
+            self._logger.log_out_inception(self._inception)
+
         else:
             raise ValueError("Optimization algorithm not available.")
-
 
     def _disable_prior_gradients(self):
         # There might be a more elegant way of disabling gradients
@@ -266,12 +270,12 @@ class CoreReinforcementRunner(BaseRunningMode):
         scores = score_summary.total_score
         smiles = score_summary.scored_smiles
 
-        for i in score_summary.valid_idxs:
-            smile = self._chemistry.convert_to_rdkit_smiles(smiles[i])
+        for idx in score_summary.valid_idxs:
+            smile = self._chemistry.convert_to_rdkit_smiles(smiles[idx])
             scaffold = self._chemistry.get_scaffold(smile)
 
-            if scores[i] >= self._diversity_filter.parameters.minscore:
-                scores[i] = self._diversity_filter._penalize_score(scaffold, scores[i])
+            if scores[idx] >= self._diversity_filter.parameters.minscore:
+                scores[idx] = self._diversity_filter._penalize_score(scaffold, scores[idx])
 
         return scores
 
