@@ -20,7 +20,6 @@ from running_modes.reinforcement_learning.margin_guard import MarginGuard
 from running_modes.utils.general import to_tensor
 
 from reinvent_chemistry.conversions import Conversions
-
 from copy import deepcopy
 
 
@@ -40,6 +39,8 @@ class CoreReinforcementRunner(BaseRunningMode):
         self._margin_guard = MarginGuard(self)
         self._optimizer = torch.optim.Adam(self._agent.get_network_parameters(), lr=self.config.learning_rate)
 
+        # optimization algorithm
+        self.optimization_algorithm = configuration.optimization_algorithm.lower()
         # SMILES augmentation hyperparameters
         self.double_loop_augment = configuration.double_loop_augment
         self.augmented_memory = configuration.augmented_memory
@@ -55,161 +56,157 @@ class CoreReinforcementRunner(BaseRunningMode):
         start_time = time.time()
         self._disable_prior_gradients()
 
-        for step in range(self.config.n_steps):
-            seqs, smiles, agent_likelihood = self._sample_unique_sequences(self._agent, self.config.batch_size)
-            # switch signs
-            agent_likelihood = -agent_likelihood
-            prior_likelihood = -self._prior.likelihood(seqs)
-            score_summary: FinalSummary = self._scoring_function.get_final_score_for_step(smiles, step)
-            score = self._diversity_filter.update_score(score_summary, step)
+        if (self.optimization_algorithm == "augmented_memory") or (self.optimization_algorithm == "reinvent"):
+            for step in range(self.config.n_steps):
+                seqs, smiles, agent_likelihood = self._sample_unique_sequences(self._agent, self.config.batch_size)
+                # switch signs
+                agent_likelihood = -agent_likelihood
+                prior_likelihood = -self._prior.likelihood(seqs)
+                score_summary: FinalSummary = self._scoring_function.get_final_score_for_step(smiles, step)
+                score = self._diversity_filter.update_score(score_summary, step)
 
-            augmented_likelihood = prior_likelihood + self.config.sigma * to_tensor(score)
-            loss = torch.pow((augmented_likelihood - agent_likelihood), 2)
-            # if augmented_memory is true, over-ride it here to not use it as we want to perform memory *after* sampling new SMILES in case of new "best-so-far" SMILES
-            loss, agent_likelihood = self._inception_filter(self._agent, loss, agent_likelihood, prior_likelihood, smiles, score, self._prior, override=True)
+                augmented_likelihood = prior_likelihood + self.config.sigma * to_tensor(score)
+                loss = torch.pow((augmented_likelihood - agent_likelihood), 2)
+                # if augmented_memory is true, over-ride it here to not use it as we want to perform memory *after* sampling new SMILES in case of new "best-so-far" SMILES
+                loss, agent_likelihood = self._inception_filter(self._agent, loss, agent_likelihood, prior_likelihood, smiles, score, self._prior, override=True)
 
-            loss = loss.mean()
-            self._optimizer.zero_grad()
-            loss.backward()
-            self._optimizer.step()
+                loss = loss.mean()
+                self._optimizer.zero_grad()
+                loss.backward()
+                self._optimizer.step()
 
-            if self.double_loop_augment:
-                if self.selective_memory_purge:
-                    self._inception.selective_memory_purge(smiles, score)
-                for _ in range(self.augmentation_rounds):
-                    # get randomized SMILES
-                    randomized_smiles_list = self._chemistry.get_randomized_smiles(smiles, self._prior)
-                    # get prior likelihood of randomized SMILES
-                    prior_likelihood = -self._prior.likelihood_smiles(randomized_smiles_list)
-                    # get agent likelihood of randomized SMILES
-                    agent_likelihood = -self._agent.likelihood_smiles(randomized_smiles_list)
-                    # compute augmented likelihood with the "new" prior likelihood using randomized SMILES
-                    augmented_likelihood = prior_likelihood + self.config.sigma * to_tensor(score)
-                    # compute loss
-                    loss = torch.pow((augmented_likelihood - agent_likelihood), 2)
-                    # experience replay using randomized SMILES
-                    loss, agent_likelihood = self._inception_filter(self._agent, loss, agent_likelihood, prior_likelihood, randomized_smiles_list, score, self._prior)
-                    loss = loss.mean()
-                    self._optimizer.zero_grad()
-                    loss.backward()
-                    self._optimizer.step()
+                if self.double_loop_augment:
+                    if self.selective_memory_purge:
+                        self._inception.selective_memory_purge(smiles, score)
+                    for _ in range(self.augmentation_rounds):
+                        # get randomized SMILES
+                        randomized_smiles_list = self._chemistry.get_randomized_smiles(smiles, self._prior)
+                        # get prior likelihood of randomized SMILES
+                        prior_likelihood = -self._prior.likelihood_smiles(randomized_smiles_list)
+                        # get agent likelihood of randomized SMILES
+                        agent_likelihood = -self._agent.likelihood_smiles(randomized_smiles_list)
+                        # compute augmented likelihood with the "new" prior likelihood using randomized SMILES
+                        augmented_likelihood = prior_likelihood + self.config.sigma * to_tensor(score)
+                        # compute loss
+                        loss = torch.pow((augmented_likelihood - agent_likelihood), 2)
+                        # experience replay using randomized SMILES
+                        loss, agent_likelihood = self._inception_filter(self._agent, loss, agent_likelihood, prior_likelihood, randomized_smiles_list, score, self._prior)
+                        loss = loss.mean()
+                        self._optimizer.zero_grad()
+                        loss.backward()
+                        self._optimizer.step()
 
-            self._stats_and_chekpoint(score, start_time, step, smiles, score_summary,
-                                      agent_likelihood, prior_likelihood,
-                                      augmented_likelihood)
+                self._stats_and_chekpoint(score, start_time, step, smiles, score_summary,
+                                          agent_likelihood, prior_likelihood,
+                                          augmented_likelihood)
 
-        self._logger.save_final_state(self._agent, self._diversity_filter)
-        self._logger.log_out_input_configuration()
-        self._logger.log_out_inception(self._inception)
+            self._logger.save_final_state(self._agent, self._diversity_filter)
+            self._logger.log_out_input_configuration()
+            self._logger.log_out_inception(self._inception)
 
-        """
-        # reproducing AHC
-        top_k = 0.5
-        # different from AHC default of 60
-        sigma = 128
-        for step in range(self.config.n_steps):
-            seqs, smiles, agent_likelihood = self._sample_unique_sequences(self._agent, self.config.batch_size)
-            score_summary: FinalSummary = self._scoring_function.get_final_score_for_step(smiles, step)
-            score = self._diversity_filter.update_score(score_summary, step)
-            tensor_score = torch.tensor(score)
-            sscore, sscore_idxs = tensor_score.sort(descending=True)
+        elif self.optimization_algorithm == "augmented_hill_climbing" or self.optimization_algorithm == "ahc":
+            # original code-base: https://github.com/MorganCThomas/SMILES-RNN/blob/main/model/RL.py
+            self.top_k = 0.5
+            for step in range(self.config.n_steps):
+                seqs, smiles, agent_likelihood = self._sample_unique_sequences(self._agent, self.config.batch_size)
+                score_summary: FinalSummary = self._scoring_function.get_final_score_for_step(smiles, step)
+                score = self._diversity_filter.update_score(score_summary, step)
+                tensor_score = torch.tensor(score)
+                sscore, sscore_idxs = tensor_score.sort(descending=True)
 
-            # switch signs
-            agent_likelihood = -agent_likelihood
-            prior_likelihood = -self._prior.likelihood(seqs)
+                # switch signs
+                agent_likelihood = -agent_likelihood
+                prior_likelihood = -self._prior.likelihood(seqs)
 
-            augmented_likelihood = prior_likelihood + sigma * to_tensor(score)
-            loss = torch.pow((augmented_likelihood - agent_likelihood), 2)
-            # take the top_k
-            loss = loss[:int(64*top_k)]
-            loss, agent_likelihood = self._inception_filter(self._agent, loss, agent_likelihood, prior_likelihood,
-                                                            smiles, score, self._prior, override=True)
+                augmented_likelihood = prior_likelihood + self.config.sigma * to_tensor(score)
+                loss = torch.pow((augmented_likelihood - agent_likelihood), 2)
+                # take the top_k
+                loss = loss[sscore_idxs.data[:int(self.config.batch_size * self.top_k)]]
+                # add experience replay
+                loss, agent_likelihood = self._inception_filter(self._agent, loss, agent_likelihood, prior_likelihood,
+                                                                smiles, score, self._prior, override=True)
 
-            loss = loss.mean()
-            self._optimizer.zero_grad()
-            loss.backward()
-            self._optimizer.step()
+                loss = loss.mean()
+                self._optimizer.zero_grad()
+                loss.backward()
+                self._optimizer.step()
 
-            self._stats_and_chekpoint(score, start_time, step, smiles, score_summary,
-                                      agent_likelihood, prior_likelihood,
-                                      augmented_likelihood)
+                self._stats_and_chekpoint(score, start_time, step, smiles, score_summary,
+                                          agent_likelihood, prior_likelihood,
+                                          augmented_likelihood)
 
-        self._logger.save_final_state(self._agent, self._diversity_filter)
-        self._logger.log_out_input_configuration()
-        self._logger.log_out_inception(self._inception)
-        """
+            self._logger.save_final_state(self._agent, self._diversity_filter)
+            self._logger.log_out_input_configuration()
+            self._logger.log_out_inception(self._inception)
 
-        """
-        # reproducing BAR
-        from copy import deepcopy
-        # initialize the best Agent
-        self.best_agent = deepcopy(self._agent)
-        self.best_score_summary = None
-        # use alpha = 0.5
-        self.alpha = 0.5
-        # potentially update the best Agent every 5 epochs
-        self.update_frequency = 5
+        elif self.optimization_algorithm == "best_agent_reminder" or self.optimization_algorithm == "ar":
+            # initialize the best Agent
+            self.best_agent = deepcopy(self._agent)
+            self.best_score_summary = None
+            self.alpha = 0.5
+            # potentially update the best Agent every 5 epochs
+            self.update_frequency = 5
 
-        for step in range(self.config.n_steps):
-            # sample batch from current Agent
-            seqs, smiles, agent_likelihood = self._sample_unique_sequences(self._agent, self.config.batch_size)
-            # sample batch from best Agent
-            best_seqs, best_smiles, best_agent_likelihood = self._sample_unique_sequences(self.best_agent, self.config.batch_size)
+            for step in range(self.config.n_steps):
+                # sample batch from current Agent
+                seqs, smiles, agent_likelihood = self._sample_unique_sequences(self._agent, self.config.batch_size)
+                # sample batch from best Agent
+                best_seqs, best_smiles, best_agent_likelihood = self._sample_unique_sequences(self.best_agent, self.config.batch_size)
 
-            # score current Agent SMILES
-            score_summary: FinalSummary = self._scoring_function.get_final_score_for_step(smiles, step)
-            score = self._diversity_filter.update_score(score_summary, step)
+                # score current Agent SMILES
+                score_summary: FinalSummary = self._scoring_function.get_final_score_for_step(smiles, step)
+                score = self._diversity_filter.update_score(score_summary, step)
 
-            # score best Agent SMILES
-            best_score_summary: FinalSummary = self._scoring_function.get_final_score_for_step(best_smiles, step)
-            best_score = self._diversity_filter.update_score(best_score_summary, step)
+                # score best Agent SMILES
+                best_score_summary: FinalSummary = self._scoring_function.get_final_score_for_step(best_smiles, step)
+                best_score = self._diversity_filter.update_score(best_score_summary, step)
 
-            # compute loss between Prior and current Agent
-            agent_likelihood = -agent_likelihood
-            prior_likelihood = -self._prior.likelihood(seqs)
-            augmented_likelihood = prior_likelihood + self.config.sigma * to_tensor(score)
-            current_agent_loss = (1 - self.alpha) * torch.pow((augmented_likelihood - agent_likelihood), 2).mean()
+                # compute loss between Prior and current Agent
+                agent_likelihood = -agent_likelihood
+                prior_likelihood = -self._prior.likelihood(seqs)
+                augmented_likelihood = prior_likelihood + self.config.sigma * to_tensor(score)
+                current_agent_loss = (1 - self.alpha) * torch.pow((augmented_likelihood - agent_likelihood), 2).mean()
 
-            # compute loss between the best Agent and current Agent
-            best_agent_likelihood = -best_agent_likelihood
-            # this is the likelihood of the SMILES sampled by the *BAR Agent* as computed by the *current* Agent
-            current_agent_likelihood = -self._agent.likelihood(best_seqs)
-            best_augmented_likelihood = best_agent_likelihood + self.config.sigma * to_tensor(best_score)
-            best_agent_loss = self.alpha * torch.pow((best_augmented_likelihood - current_agent_likelihood), 2)
+                # compute loss between the best Agent and current Agent
+                best_agent_likelihood = -best_agent_likelihood
+                # this is the likelihood of the SMILES sampled by the *BAR Agent* as computed by the *current* Agent
+                current_agent_likelihood = -self._agent.likelihood(best_seqs)
+                best_augmented_likelihood = best_agent_likelihood + self.config.sigma * to_tensor(best_score)
+                best_agent_loss = self.alpha * torch.pow((best_augmented_likelihood - current_agent_likelihood), 2)
 
-            # add experience replay (as we are using alpha=0.5, it doesn't matter to which loss we are concatenating
-            # the experience replay loss since they are both scaled down by 0.5). This matters if alpha deviates from 0.5 --> essentially how much onus to place on experience replay loss)
-            # pass the current Agent and current Agent's sampled SMILES because we want to update this Agent
-            # the only thing we are passing that belongs to the best Agent is the best Agent loss
-            best_agent_loss, best_agent_likelihood = self._inception_filter(self._agent, best_agent_loss, agent_likelihood, prior_likelihood,
-                                                                            smiles, score, self._prior, override=True)
+                # add experience replay
+                # pass the current Agent and current Agent's sampled SMILES because we want to update this Agent
+                # the only thing we are passing that belongs to the best Agent is the best Agent loss
+                best_agent_loss, best_agent_likelihood = self._inception_filter(self._agent, best_agent_loss, agent_likelihood, prior_likelihood,
+                                                                                smiles, score, self._prior, override=True)
 
-            # add experience replay before taking the mean
-            best_agent_loss = best_agent_loss.mean()
+                # add experience replay before taking the mean
+                best_agent_loss = best_agent_loss.mean()
 
-            # compute the BAR loss
-            BAR_loss = current_agent_loss + best_agent_loss
+                # compute the BAR loss
+                BAR_loss = current_agent_loss + best_agent_loss
 
-            self._optimizer.zero_grad()
-            BAR_loss.backward()
-            self._optimizer.step()
+                self._optimizer.zero_grad()
+                BAR_loss.backward()
+                self._optimizer.step()
 
-            self._stats_and_chekpoint(score, start_time, step, smiles, score_summary,
-                                      agent_likelihood, prior_likelihood,
-                                      augmented_likelihood)
+                self._stats_and_chekpoint(score, start_time, step, smiles, score_summary,
+                                          agent_likelihood, prior_likelihood,
+                                          augmented_likelihood)
 
-            if step % self.update_frequency == 0:
-                if self.best_score_summary is not None:
-                    penalized_best_average_score = np.mean(self.bar_scores_penalization(self.best_score_summary))
-                    if np.mean(score) > penalized_best_average_score:
+                if step % self.update_frequency == 0:
+                    if self.best_score_summary is not None:
+                        penalized_best_average_score = np.mean(self.bar_scores_penalization(self.best_score_summary))
+                        if np.mean(score) > penalized_best_average_score:
+                            self.best_score_summary = score_summary
+                            # new best Agent
+                            self.best_agent = deepcopy(self._agent)
+                    else:
                         self.best_score_summary = score_summary
                         # new best Agent
                         self.best_agent = deepcopy(self._agent)
-                else:
-                    self.best_score_summary = score_summary
-                    # new best Agent
-                    self.best_agent = deepcopy(self._agent)
-        """
+        else:
+            raise ValueError("Optimization algorithm not available.")
 
 
     def _disable_prior_gradients(self):

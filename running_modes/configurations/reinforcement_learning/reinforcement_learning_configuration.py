@@ -10,6 +10,7 @@ class ReinforcementLearningConfiguration:
     learning_rate: float = 0.0001
     batch_size: int = 128
     margin_threshold: int = 50
+    optimization_algorithm: str = "augmented_memory"
     double_loop_augment: bool = True
     augmented_memory: bool = False
     augmentation_rounds: int = 10
