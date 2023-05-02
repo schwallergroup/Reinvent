@@ -1,4 +1,4 @@
-name: reinvent.organocatalyst.blas
+name: augmented_memory
 channels:
   - openeye
   - anaconda
@@ -155,4 +155,4 @@ dependencies:
     - torch==1.12.1+cu113
     - torchaudio==0.12.1+cu113
     - torchvision==0.13.1+cu113
-prefix: /home/jeguo/miniconda3/envs/reinvent.organocatalyst.blas
+prefix: /home/jeguo/miniconda3/envs/augmented_memory
