@@ -30,7 +30,7 @@ class Inception:
 
     def _mode_collapse_guard(self):
         # in *pure* exploitation scenarios where Selective Memory Purge is not used, the following heuristic
-        # pre-emptively guards against rare cases of mode collapse at suboptimal minima
+        # pre-emptively guards against rare cases of mode collapse at suboptimal
         sliced_memory = self.memory.head(int(self.configuration.memory_size*0.7))
         if (sliced_memory['score'].nunique() == 1) and (int(sliced_memory['score'].iloc[0]) != 1):
             print("---- Pre-emptively guarding against mode collapse: purging buffer -----")

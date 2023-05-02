@@ -140,6 +140,7 @@ class CoreReinforcementRunner(BaseRunningMode):
             self._logger.log_out_inception(self._inception)
 
         elif self.optimization_algorithm == "best_agent_reminder" or self.optimization_algorithm == "bar":
+            # built on https://github.com/MorganCThomas/SMILES-RNN/blob/main/model/RL.py
             # initialize the best Agent
             self.best_agent = deepcopy(self._agent)
             self.best_score_summary = None
