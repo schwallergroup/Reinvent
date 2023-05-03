@@ -2,8 +2,8 @@
   "logging": {
     "logging_frequency": 10,
     "recipient": "local",
-    "logging_path": "<your directory>/bar_progress.log",
-    "result_folder": "<your directory>/bar_results"
+    "logging_path": "bar_progress.log",
+    "result_folder": "bar_results"
   },
   "model_type": "default",
   "parameters": {
@@ -20,12 +20,12 @@
       "augmented_memory_mode_collapse_guard": false
     },
     "reinforcement_learning": {
-      "agent": "<your directory>/augmented_memory_reproduce_experiments/random.prior.new",
+      "agent": "../../random.prior.new",
       "batch_size": 64,
       "learning_rate": 0.0001,
       "margin_threshold": 50,
       "n_steps": 150,
-      "prior": "<your directory>/augmented_memory_reproduce_experiments/random.prior.new",
+      "prior": "../../random.prior.new",
       "sigma": 1,
       "optimization_algorithm": "bar",
       "augmented_memory": false,

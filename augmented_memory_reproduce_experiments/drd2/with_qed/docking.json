@@ -2,7 +2,7 @@
   "docking": {
     "header": {
       "logging": {
-        "logfile": "<your directory>/docking.log"
+        "logfile": "docking.log"
       }
     },
     "ligand_preparation": {
@@ -36,7 +36,7 @@
           },
           "seed": 42,
           "receptor_pdbqt_path": [
-            "<DRD2 AutoDock Vina Grid location>/grid_with_waters.pdbqt"
+            "../grid_with_waters.pdbqt"
 	  ],
           "number_poses": 1,
           "search_space": {
@@ -50,9 +50,9 @@
         },
         "output": {
           "poses": {
-            "poses_path": "<where to save the docked poses>/docked_poses/poses.sdf"},
+            "poses_path": "docked_poses/poses.sdf"},
 	  "scores": {
-            "scores_path": "<where to save the docked scores>/docked_scores/scores.csv"	  }
+            "scores_path": "docked_scores/scores.csv"}
       }
       }
     ]

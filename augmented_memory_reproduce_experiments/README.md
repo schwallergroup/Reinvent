@@ -13,6 +13,8 @@ The Prior used to reproduce Experiments 1 and 2 is provided here and is named `r
 Experiment 1: Aripiprazole Similarity
 ---------------------------------------------------------------------------------------
 * In this folder, there is a folder named `aripiprazole` which has 2 sub-folders, `experience_replay` and `no_experience_replay`. In each sub-folder are configuration JSONs to run all the algorithms for this experiment. Running the experiments with and without experience replay will reproduce the plot in Figure 2a of the main paper.
+* Note that all experiments were run for 300 epochs with batch size 64 (19,200 oracle calls). The exception is Best Agent Reminder (BAR) experiments which were run for 150 epochs as each epoch samples *2* batches.
+
 
 ---------------------------------------------------------------------------------------
 Experiment 2: Practical Molecular Optimization (PMO) Benchmark

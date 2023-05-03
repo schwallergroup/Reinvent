@@ -2,8 +2,8 @@
   "logging": {
     "logging_frequency": 10,
     "recipient": "local",
-    "logging_path": "<your directory>/REINVENT_replay_drd2_progress.log",
-    "result_folder": "<your directory>/REINVENT_replay_drd2_results"
+    "logging_path": "REINVENT_replay_drd2_progress.log",
+    "result_folder": "REINVENT_replay_drd2_results"
   },
   "model_type": "default",
   "parameters": {
@@ -20,12 +20,12 @@
       "augmented_memory_mode_collapse_guard": false
     },
     "reinforcement_learning": {
-      "agent": "<your directory>/augmented_memory_reproduce_experiments/random.prior.new",
+      "agent": "../../random.prior.new",
       "batch_size": 64,
       "learning_rate": 0.0001,
       "margin_threshold": 50,
       "n_steps": 150,
-      "prior": "<your directory>/augmented_memory_reproduce_experiments/random.prior.new",
+      "prior": "../../random.prior.new",
       "sigma": 128,
       "optimization_algorithm": "reinvent",
       "augmented_memory": false,
@@ -46,7 +46,7 @@
 		    "high": -1,
 		    "k": 0.25
 		   },
-	    "configuration_path": "<your directory>/docking.json",
+	    "configuration_path": "docking.json",
 	    "docker_script_path": "<DockStream directory>/docker.py",
 	    "environment_path": "<DockStream conda environment directory>/bin/python"
           },
