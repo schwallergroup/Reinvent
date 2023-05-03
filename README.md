@@ -8,26 +8,24 @@ Installation
 2. Clone this Git repository
 3. Open a shell, and go to the repository and create the Conda environment:
    
-        $ conda env create -f reinvent.yml
+        $ source setup.sh
 
 4. Activate the environment:
    
-        $ conda activate reinvent.v3.2
-
-5. Use the tool.
+        $ conda activate augmented_memory
 
      
 System Requirements
 -------------------
 
-* Python 3.7
+* Python 3.10
 * Cuda-enabled GPU
-* `REINVENT` has been tested on Linux
+* `Augmented Memory` has been tested on Linux
 
 
 Tutorials / `jupyter` notebooks
 -----
-There is another repository containing useful `jupyter` notebooks related to `REINVENT` 
+There is another repository containing useful `jupyter` notebooks related to `REINVENT` (Augmented Memory builds on this repository) 
 called [ReinventCommunity](https://github.com/MolecularAI/ReinventCommunity). Note, that it uses a
 different `conda` environment to execute, so you have to set up a separate environment.
 
