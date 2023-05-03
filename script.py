@@ -10,9 +10,9 @@ import subprocess
 
 #BASE_PATH = '/home/jeguo/Desktop/augmented_experience_replay/true_exploration'
 
-for base_path in ['/home/jeguo/Desktop/augmented_experience_replay/robustness/robustness' ]:   
+for base_path in ['/home/jeguo/Desktop/augmented_experience_replay/robustness/no_augmentation']:   
     configs = os.listdir(base_path)
-    configs = [config for config in configs if int(config.split('_')[1].split('.')[0]) >= 101]
+    #configs = [config for config in configs if int(config.split('_')[1].split('.')[0]) >= 101]
     for config in configs:
         path = os.path.join(base_path, config)
         subprocess.run(['python', 'input.py', path])

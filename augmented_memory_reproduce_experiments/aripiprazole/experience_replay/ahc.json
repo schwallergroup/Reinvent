@@ -2,8 +2,8 @@
   "logging": {
     "logging_frequency": 10,
     "recipient": "local",
-    "logging_path": "<your directory>/ahc_progress.log",
-    "result_folder": "<your directory>/ahc_results"
+    "logging_path": "<your directory>/ahc_replay_progress.log",
+    "result_folder": "<your directory>/ahc_replay_results"
   },
   "model_type": "default",
   "parameters": {
@@ -14,22 +14,21 @@
       "nbmax": 25
     },
     "inception": {
-      "memory_size": 0,
+      "memory_size": 100,
       "sample_size": 10,
       "smiles": [],
       "augmented_memory_mode_collapse_guard": false
     },
     "reinforcement_learning": {
-      "agent": "/home/jeguo/Desktop/ReinventCommunity/notebooks/models/random.prior.new",
+      "agent": "<your directory>/augmented_memory_reproduce_experiments/random.prior.new",
       "batch_size": 64,
       "learning_rate": 0.0001,
       "margin_threshold": 50,
       "n_steps": 300,
-      "prior": "/home/jeguo/Desktop/ReinventCommunity/notebooks/models/random.prior.new",
+      "prior": "<your directory>/augmented_memory_reproduce_experiments/random.prior.new",
       "sigma": 60,
       "optimization_algorithm": "ahc",
-      "double_loop_augment": true,
-      "augmented_memory": true,
+      "augmented_memory": false,
       "augmentation_rounds": 2,
       "selective_memory_purge": false
     },

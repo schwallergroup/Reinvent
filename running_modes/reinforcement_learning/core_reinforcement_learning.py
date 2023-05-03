@@ -1,3 +1,7 @@
+# -------------------------------------------------------------------------------------------------------------
+# this file has been modified from https://github.com/MolecularAI/Reinvent for Augmented Memory implementation
+# -------------------------------------------------------------------------------------------------------------
+
 import time
 
 import numpy as np
@@ -42,7 +46,6 @@ class CoreReinforcementRunner(BaseRunningMode):
         # optimization algorithm
         self.optimization_algorithm = configuration.optimization_algorithm.lower()
         # SMILES augmentation hyperparameters
-        self.double_loop_augment = configuration.double_loop_augment
         self.augmented_memory = configuration.augmented_memory
         self.augmentation_rounds = configuration.augmentation_rounds
         self.selective_memory_purge = configuration.selective_memory_purge
@@ -75,7 +78,7 @@ class CoreReinforcementRunner(BaseRunningMode):
                 loss.backward()
                 self._optimizer.step()
 
-                if self.double_loop_augment:
+                if self.augmented_memory:
                     if self.selective_memory_purge:
                         self._inception.selective_memory_purge(smiles, score)
                     for _ in range(self.augmentation_rounds):
@@ -151,6 +154,7 @@ class CoreReinforcementRunner(BaseRunningMode):
             for step in range(self.config.n_steps):
                 # sample batch from current Agent
                 seqs, smiles, agent_likelihood = self._sample_unique_sequences(self._agent, self.config.batch_size)
+
                 # sample batch from best Agent
                 best_seqs, best_smiles, best_agent_likelihood = self._sample_unique_sequences(self.best_agent, self.config.batch_size)
 

@@ -1,0 +1,54 @@
+{
+  "logging": {
+    "logging_frequency": 10,
+    "recipient": "local",
+    "logging_path": "<your directory>/bar_replay_progress.log",
+    "result_folder": "<your directory>/bar_replay_results"
+  },
+  "model_type": "default",
+  "parameters": {
+    "diversity_filter": {
+      "minscore": 0.0,
+      "minsimilarity": 0.4,
+      "name": "NoFilter",
+      "nbmax": 25
+    },
+    "inception": {
+      "memory_size": 100,
+      "sample_size": 10,
+      "smiles": [],
+      "augmented_memory_mode_collapse_guard": false
+    },
+    "reinforcement_learning": {
+      "agent": "<your directory>/augmented_memory_reproduce_experiments/random.prior.new",
+      "batch_size": 64,
+      "learning_rate": 0.0001,
+      "margin_threshold": 50,
+      "n_steps": 150,
+      "prior": "<your directory>/augmented_memory_reproduce_experiments/random.prior.new",
+      "sigma": 1,
+      "optimization_algorithm": "bar",
+      "augmented_memory": false,
+      "augmentation_rounds": 2,
+      "selective_memory_purge": false
+    },
+    "scoring_function": {
+      "name": "custom_product",
+      "parallel": false,
+      "parameters": [
+        {
+          "component_type": "tanimoto_similarity",
+          "name": "Aripiprazole",
+          "specific_parameters": {
+            "smiles": [
+              "Clc4cccc(N3CCN(CCCCOc2ccc1c(NC(=O)CC1)c2)CC3)c4Cl"
+            ]
+          },
+          "weight": 1
+        }
+      ]
+    }
+  },
+  "run_type": "reinforcement_learning",
+  "version": 3
+}

@@ -1,3 +1,7 @@
+# -------------------------------------------------------------------------------------------------------------
+# this file has been modified from https://github.com/MolecularAI/Reinvent for Augmented Memory implementation
+# -------------------------------------------------------------------------------------------------------------
+
 import numpy as np
 import pandas as pd
 from typing import Tuple, List
