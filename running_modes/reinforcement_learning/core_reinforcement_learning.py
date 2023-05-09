@@ -45,14 +45,16 @@ class CoreReinforcementRunner(BaseRunningMode):
 
         # optimization algorithm
         self.optimization_algorithm = configuration.optimization_algorithm.lower()
+        # specific algorithm parameters
+        self.top_k = configuration.specific_algorithm_parameters.get("top_k", 0.5)
+        self.alpha = configuration.specific_algorithm_parameters.get("alpha", 0.5)
+        self.update_frequency = configuration.specific_algorithm_parameters.get("update_frequency", 5)
         # SMILES augmentation hyperparameters
         self.augmented_memory = configuration.augmented_memory
         self.augmentation_rounds = configuration.augmentation_rounds
         self.selective_memory_purge = configuration.selective_memory_purge
         # SMILES randomization functions from reinvent-chemistry
         self._chemistry = Conversions()
-
-        self.previous_score = None
 
     def run(self):
         self._logger.log_message("starting an RL run")
@@ -109,7 +111,6 @@ class CoreReinforcementRunner(BaseRunningMode):
 
         elif self.optimization_algorithm == "augmented_hill_climbing" or self.optimization_algorithm == "ahc":
             # original code-base: https://github.com/MorganCThomas/SMILES-RNN/blob/main/model/RL.py
-            self.top_k = 0.5
             for step in range(self.config.n_steps):
                 seqs, smiles, agent_likelihood = self._sample_unique_sequences(self._agent, self.config.batch_size)
                 score_summary: FinalSummary = self._scoring_function.get_final_score_for_step(smiles, step)
@@ -147,9 +148,6 @@ class CoreReinforcementRunner(BaseRunningMode):
             # initialize the best Agent
             self.best_agent = deepcopy(self._agent)
             self.best_score_summary = None
-            self.alpha = 0.5
-            # potentially update the best Agent every 5 epochs
-            self.update_frequency = 5
 
             for step in range(self.config.n_steps):
                 # sample batch from current Agent

@@ -17,7 +17,7 @@
       "memory_size": 100,
       "sample_size": 10,
       "smiles": [],
-      "augmented_memory_mode_collapse_guard": false
+      "augmented_memory_mode_collapse_guard": true
     },
     "reinforcement_learning": {
       "agent": "../../random.prior.new",
@@ -28,6 +28,11 @@
       "prior": "../../random.prior.new",
       "sigma": 128,
       "optimization_algorithm": "augmented_memory",
+      "specific_algorithm_parameters": {
+              "top_k": 0.5,
+              "alpha": 0.5,
+              "update_frequency": 5
+      },
       "augmented_memory": true,
       "augmentation_rounds": 2,
       "selective_memory_purge": false

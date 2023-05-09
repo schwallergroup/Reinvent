@@ -28,6 +28,11 @@
       "prior": "../../random.prior.new",
       "sigma": 128,
       "optimization_algorithm": "augmented_memory",
+      "specific_algorithm_parameters": {
+              "top_k": 0.5,
+              "alpha": 0.5,
+              "update_frequency": 5
+      },
       "augmented_memory": true,
       "augmentation_rounds": 2,
       "selective_memory_purge": true
