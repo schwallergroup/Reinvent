@@ -2,13 +2,13 @@ Augmented Memory (reproducing all experiments)
 
 In the paper, 3 experiments were performed and instructions to reproduce them are presented below. The first thingrequired is to install the conda environment. Run the following command in the parent directory.
 
-source setup.py
+`source setup.py`
 
 this will create a conda environment called `augmented_memory`.
 
-Augmented Memory, like `REINVENT`, is run using input.py and passing a configuration JSON. All JSONs to reproduce the experiments are provided in this folder. The only thing required is to change save paths in the JSONs.
+Augmented Memory, like `REINVENT`, is run using input.py by passing a configuration JSON. All JSONs to reproduce the experiments in the Augmented Memory paper are provided in this folder. The only thing required is to change save paths in the JSONs.
 
-The Prior used to reproduce Experiments 1 and 2 is provided here and is named `random.prior.new`
+The Prior used to reproduce Experiments 1 and 2 is provided here and is named `random.prior.new` which is from the ReinventCommunity repository (https://github.com/MolecularAI/ReinventCommunity/tree/master/notebooks/models).
 
 ---------------------------------------------------------------------------------------
 Experiment 1: Aripiprazole Similarity
