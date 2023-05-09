@@ -36,7 +36,7 @@ class DAPSingleQueryStrategy(BaseSingleQueryLearningStrategy):
     def _calculate_augmented_loss(self, agent, score, smiles, inception, prior, augmented_memory):
         """implementation of Double Reinforcement Learning: https://arxiv.org/pdf/2210.12458.pdf"""
         # get randomized SMILES
-        randomized_smiles_list = _chemistry._get_randomized_smiles(smiles, prior)
+        randomized_smiles_list = _chemistry.get_randomized_smiles(smiles, prior)
         # obtain critic (prior) likelihoods of randomized SMILES
         negative_critic_nlls = -self.critic_model.likelihood_smiles(randomized_smiles_list)
         # obtain actor (agent) likelihood of randomized SMILES

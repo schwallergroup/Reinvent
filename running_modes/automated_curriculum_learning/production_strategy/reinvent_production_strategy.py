@@ -115,7 +115,7 @@ class ReinventProductionStrategy(BaseProductionStrategy):
 
     @staticmethod
     def get_scaffold(smiles):
-        # TODO: this probably exists in reinvent-chemistry or maybe it's scoring already, otherwise put this there
+        # TODO: this function exists - remove redundancy
         mol = Chem.MolFromSmiles(smiles)
         if mol:
             try:
