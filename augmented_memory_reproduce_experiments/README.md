@@ -1,4 +1,6 @@
+---------------------------------------------------------------------------------------
 Augmented Memory (reproducing all experiments)
+---------------------------------------------------------------------------------------
 
 In the paper, 3 experiments were performed and instructions to reproduce them are presented below. The first thingrequired is to install the conda environment. Run the following command in the parent directory.
 
