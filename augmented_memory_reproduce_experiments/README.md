@@ -2,22 +2,28 @@
 Augmented Memory (reproducing all experiments)
 ---------------------------------------------------------------------------------------
 
-In the paper, 3 experiments were performed and instructions to reproduce them are presented below. The first thingrequired is to install the conda environment. Run the following command in the parent directory.
+In the paper, 3 experiments were performed and instructions to reproduce them are presented below. The first thing required is to install the conda environment. Run the following command in the parent directory.
 
 `source setup.py`
 
 this will create a conda environment called `augmented_memory`.
 
-Augmented Memory, like `REINVENT`, is run using input.py by passing a configuration JSON. All JSONs to reproduce the experiments in the Augmented Memory paper are provided in this folder. The only thing required is to change save paths in the JSONs.
+Augmented Memory, like `REINVENT`, is run using input.py by passing a configuration JSON. All JSONs to reproduce the experiments in the Augmented Memory paper are provided in this folder. The only thing required is to change save paths in the JSONs. Once the configuation JSON is ready, Augmented Memory can be run with the following command:
 
-The Prior used to reproduce Experiments 1 and 2 is provided here and is named `random.prior.new` which is from the ReinventCommunity repository (https://github.com/MolecularAI/ReinventCommunity/tree/master/notebooks/models).
+`augmented_memory/input.py <path to configuration JSON>`
+
+All experiments can be visualized through Tensorboard which is installed in the `augmented_memory` environment. All experiments output a `.log` file and can be visualized via the following command:
+
+`tensorboard --logdir <.log file> --bind_all`
+
+Note: The Prior used to reproduce Experiments 1 and 3 is provided here and is named `random.prior.new` which is from the ReinventCommunity repository (https://github.com/MolecularAI/ReinventCommunity/tree/master/notebooks/models). The choice to use this Prior was to compare Augmented Memory to `Double Loop RL`, as described in Experiment 1. 
 
 ---------------------------------------------------------------------------------------
 Experiment 1: Aripiprazole Similarity
 ---------------------------------------------------------------------------------------
 * In this folder, there is a folder named `aripiprazole` which has 2 sub-folders, `experience_replay` and `no_experience_replay`. In each sub-folder are configuration JSONs to run all the algorithms for this experiment. Running the experiments with and without experience replay will reproduce the plot in Figure 2a of the main paper.
 * Note that all experiments were run for 300 epochs with batch size 64 (19,200 oracle calls). The exception is Best Agent Reminder (BAR) experiments which were run for 150 epochs as each epoch samples *2* batches.
-* For this set of experiments, no paths need to be changed in the configuration JSONs provided. Once you have the conda environment (augmented_memory) activated, go to the `aripiprazole` folder and all JSONs should run by calling python ../../../input.py <whichever JSON you want to run>
+* For this set of experiments, no paths need to be changed in the configuration JSONs provided. Once you have the conda environment (`augmented_memory`) activated, go to the `aripiprazole` folder and all JSONs should run by calling python ../../../input.py <whichever JSON you want to run>
 
 ---------------------------------------------------------------------------------------
 Experiment 2: Practical Molecular Optimization (PMO) Benchmark
