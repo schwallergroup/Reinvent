@@ -34,7 +34,6 @@ class DAPSingleQueryStrategy(BaseSingleQueryLearningStrategy):
         return loss, negative_actor_nlls, negative_critic_nlls, augmented_nlls
 
     def _calculate_augmented_loss(self, agent, score, smiles, inception, prior, augmented_memory):
-        """implementation of Double Reinforcement Learning: https://arxiv.org/pdf/2210.12458.pdf"""
         # get randomized SMILES
         randomized_smiles_list = _chemistry.get_randomized_smiles(smiles, prior)
         # obtain critic (prior) likelihoods of randomized SMILES
@@ -55,7 +54,6 @@ class DAPSingleQueryStrategy(BaseSingleQueryLearningStrategy):
     def _inception_filter(self, agent, loss, agent_likelihood, prior_likelihood, sigma, smiles, score, inception, prior=None, augmented_memory=False, override=False):
         if inception:
             if augmented_memory and not override:
-                print('we are doing augmented memory')
                 exp_smiles, exp_scores, exp_prior_likelihood = inception.augmented_memory_replay(prior)
             else:
                 exp_smiles, exp_scores, exp_prior_likelihood = inception.sample()

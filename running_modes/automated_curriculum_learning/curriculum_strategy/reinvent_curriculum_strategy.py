@@ -51,7 +51,7 @@ class ReinventCurriculumStrategy(BaseCurriculumStrategy):
         # 3. Updating
         agent_likelihood, prior_likelihood, augmented_likelihood = self._updating(sampled, score, self.inception, agent)
         # 4. Augment SMILES and update Agent again
-        if self.double_loop_augment:
+        if self.augmented_memory:
             # purge memory first
             if self.selective_memory_purge:
                 self._selective_memory_purge(sampled.smiles, score)
