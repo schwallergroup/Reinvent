@@ -111,6 +111,7 @@ class CoreReinforcementRunner(BaseRunningMode):
 
         elif self.optimization_algorithm == "augmented_hill_climbing" or self.optimization_algorithm == "ahc":
             # original code-base: https://github.com/MorganCThomas/SMILES-RNN/blob/main/model/RL.py
+            # original paper: https://jcheminf.biomedcentral.com/articles/10.1186/s13321-022-00646-z
             for step in range(self.config.n_steps):
                 seqs, smiles, agent_likelihood = self._sample_unique_sequences(self._agent, self.config.batch_size)
                 score_summary: FinalSummary = self._scoring_function.get_final_score_for_step(smiles, step)
@@ -145,6 +146,7 @@ class CoreReinforcementRunner(BaseRunningMode):
 
         elif self.optimization_algorithm == "best_agent_reminder" or self.optimization_algorithm == "bar":
             # built on https://github.com/MorganCThomas/SMILES-RNN/blob/main/model/RL.py
+            # originally proposed for GraphINVENT from the following paper: https://pubs.acs.org/doi/full/10.1021/acs.jcim.2c00838
             # initialize the best Agent
             self.best_agent = deepcopy(self._agent)
             self.best_score_summary = None
