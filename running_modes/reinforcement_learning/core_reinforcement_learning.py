@@ -244,6 +244,9 @@ class CoreReinforcementRunner(BaseRunningMode):
 
     def _inception_filter(self, agent, loss, agent_likelihood, prior_likelihood, smiles, score, prior, override=False):
         if self.augmented_memory and not override:
+            if self._inception.configuration.augmented_memory_mode_collapse_guard:
+                # if the below executes, Augmented Memory is effectively paused for this epoch
+                self._inception.mode_collapse_guard()
             exp_smiles, exp_scores, exp_prior_likelihood = self._inception.augmented_memory_replay(prior)
         else:
             exp_smiles, exp_scores, exp_prior_likelihood = self._inception.sample()
@@ -251,8 +254,7 @@ class CoreReinforcementRunner(BaseRunningMode):
             exp_agent_likelihood = -agent.likelihood_smiles(exp_smiles)
             exp_augmented_likelihood = exp_prior_likelihood + self.config.sigma * exp_scores
             exp_loss = torch.pow((to_tensor(exp_augmented_likelihood) - exp_agent_likelihood), 2)
-            #loss = torch.cat((loss, exp_loss), 0)
-            loss = exp_loss
+            loss = torch.cat((loss, exp_loss), 0)
             agent_likelihood = torch.cat((agent_likelihood, exp_agent_likelihood), 0)
 
         self._inception.add(smiles, score, prior_likelihood)

@@ -29,13 +29,11 @@ class Inception:
         sorted_df = unique_df.sort_values('score', ascending=False)
         self.memory = sorted_df.head(self.configuration.memory_size)
         self.memory = self.memory.loc[self.memory['score'] != 0.0]
-        if self.configuration.augmented_memory_mode_collapse_guard:
-            self._mode_collapse_guard()
 
-    def _mode_collapse_guard(self):
+    def mode_collapse_guard(self):
         # in *pure* exploitation scenarios where Selective Memory Purge is not used, the following heuristic
-        # pre-emptively guards against rare cases of mode collapse at suboptimal
-        sliced_memory = self.memory.head(int(self.configuration.memory_size*0.7))
+        # pre-emptively guards against rare cases of mode collapse at suboptimal values
+        sliced_memory = self.memory.head(int(self.configuration.memory_size*0.5))
         if (sliced_memory['score'].nunique() == 1) and (int(sliced_memory['score'].iloc[0]) != 1):
             print("---- Pre-emptively guarding against mode collapse: purging buffer -----")
             self.memory = pd.DataFrame(columns=['smiles', 'score', 'likelihood'])
