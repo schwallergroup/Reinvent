@@ -2,6 +2,9 @@
 Augmented Memory (reproducing all experiments)
 ---------------------------------------------------------------------------------------
 
+
+`Pre-print: https://chemrxiv.org/engage/chemrxiv/article-details/6464dc3ea32ceeff2dcbd948`
+
 In the paper, 3 experiments were performed and instructions to reproduce them are presented below. The first thing required is to install the conda environment. Run the following command in the parent directory.
 
 `source setup.py`
@@ -23,13 +26,30 @@ Experiment 1: Aripiprazole Similarity
 ---------------------------------------------------------------------------------------
 * In this folder, there is a folder named `aripiprazole` which has 2 sub-folders, `experience_replay` and `no_experience_replay`. In each sub-folder are configuration JSONs to run all the algorithms for this experiment. Running the experiments with and without experience replay will reproduce the plot in Figure 2a of the main paper.
 * Note that all experiments were run for 300 epochs with batch size 64 (19,200 oracle calls). The exception is Best Agent Reminder (BAR) experiments which were run for 150 epochs as each epoch samples *2* batches.
-* For this set of experiments, no paths need to be changed in the configuration JSONs provided. Once you have the conda environment (`augmented_memory`) activated, go to the `aripiprazole` folder and all JSONs should run by calling python ../../../input.py <whichever JSON you want to run>
+* For this set of experiments, no paths need to be changed in the configuration JSONs provided. Once you have the conda environment (`augmented_memory`) activated, go to the `aripiprazole` folder and all JSONs should run via the following command:
+`python ../../../input.py <whichever JSON you want to run>`
 
 ---------------------------------------------------------------------------------------
 Experiment 2: Practical Molecular Optimization (PMO) Benchmark
 ---------------------------------------------------------------------------------------
-* These experiments were run using the great repository found here: https://github.com/wenhao-gao/mol_opt.
-* All the code and instructions to reproduce the benchmark results are in the README in this repository.
+* These experiments were run using the great repository found here: https://github.com/wenhao-gao/mol\_opt.
+* The code to reproduce the benchmark results and further information is in the README in the above repository.
+
+**Results differ slightly based on the Python version, package version (for example, if a different torch version is used for cuda compatability), 
+hardware, and potentially resource usage (parallel processes running)**
+
+The exact conda environment used to reproduce the experiments is provided in the `pmo_benchmark` folder. There are 2 conda environments. 
+`requirements.txt` was used for all benchmark tasks except drd2, gsk3b, jnk3. `requirements_sklearn.txt` was used for drd2, gsk3b, jnk3.
+
+The benchmarking runs for a given algorithm was run using the following command:
+*in the mol_opt repository and with the conda environment activated*
+`python run.py <algorithm name> --task production --n_runs 10 --oracles <oracle name>`
+
+algorithm names are as follows:
+* Augmented Memory = smiles\_aug\_mem
+* REINVENT = reinvent
+* Augmented Hill Climbing = smiles\_ahc
+* Best Agent Reminder = smiles\_bar
 
 ---------------------------------------------------------------------------------------
 Experiment 3: DRD2 Case Study

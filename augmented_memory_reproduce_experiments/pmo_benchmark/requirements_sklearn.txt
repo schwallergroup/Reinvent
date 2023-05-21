@@ -1,0 +1,8 @@
+conda create -n test python=3.9.15=h47a2c10_0_cpython
+conda install -c conda-forge pytorch=1.11.0=cpu_py39h7613f69_0
+Pip install pyTDC==0.3.6
+conda install -c rdkit rdkit
+Pip install wandb
+Pip install networkx
+pip install scikit-learn==0.21.3
+conda install -c conda-forge scipy=1.7.3=py39hddc5342_1
