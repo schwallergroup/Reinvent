@@ -1,6 +1,8 @@
 Augmented Memory (Built on REINVENT)
 =================================================================================================================
 
+`Pre-print: https://chemrxiv.org/engage/chemrxiv/article-details/646a353da32ceeff2d014776`
+
 Installation
 -------------
 
