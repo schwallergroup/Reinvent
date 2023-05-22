@@ -3,7 +3,7 @@ Augmented Memory (reproducing all experiments)
 ---------------------------------------------------------------------------------------
 
 
-`Pre-print: https://chemrxiv.org/engage/chemrxiv/article-details/646a353da32ceeff2d014776`
+[Pre-print](https://chemrxiv.org/engage/chemrxiv/article-details/646a353da32ceeff2d014776)
 
 In the paper, 3 experiments were performed and instructions to reproduce them are presented below. The first thing required is to install the conda environment. Run the following command in the parent directory.
 
