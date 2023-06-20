@@ -17,11 +17,6 @@ from running_modes.automated_curriculum_learning.production_strategy.base_produc
     BaseProductionStrategy
 
 
-from copy import deepcopy
-from rdkit import Chem
-from rdkit.Chem.Scaffolds.MurckoScaffold import GetScaffoldForMol
-
-
 class ReinventProductionStrategy(BaseProductionStrategy):
 
     def run(self, cl_agent: GenerativeModelBase, steps_so_far: int):
@@ -57,11 +52,11 @@ class ReinventProductionStrategy(BaseProductionStrategy):
         score, score_summary = self._scoring(scoring_function, sampled.smiles, step)
         # 3. Updating
         agent_likelihood, prior_likelihood, augmented_likelihood = self._updating(sampled, score, self.inception, agent, learning_strategy)
-        # 4. Augment SMILES and update Agent again
+        # 4. Use Augmented Memory
         if self.augmented_memory:
             # purge memory first
             if self.selective_memory_purge:
-                self._selective_memory_purge(sampled.smiles, score)
+                self.inception.selective_memory_purge(sampled.smiles, score)
             for _ in range(self.augmentation_rounds):
                 agent_likelihood, prior_likelihood, augmented_likelihood = self._updating_augmented(learning_strategy, agent,
                                                                                                 score, sampled.smiles,
@@ -98,30 +93,3 @@ class ReinventProductionStrategy(BaseProductionStrategy):
         report_dto = TimestepDTO(start_time, self._parameters.number_of_steps, step, score_summary,
                                  agent_likelihood, prior_likelihood, augmented_likelihood)
         self._logger.timestep_report(report_dto, self._diversity_filter, agent)
-
-    def _selective_memory_purge(self, smiles, score):
-        # TODO: move this to inception
-        zero_score_indices = np.where(score == 0.)[0]
-        if len(zero_score_indices) > 0:
-            smiles_to_purge = smiles[zero_score_indices]
-            scaffolds_to_purge = [self.get_scaffold(smiles) for smiles in smiles_to_purge]
-            purged_memory = deepcopy(self.inception.memory)
-            purged_memory['scaffolds'] = purged_memory['smiles'].apply(self.get_scaffold)
-            purged_memory = purged_memory.loc[~purged_memory['scaffolds'].isin(scaffolds_to_purge)]
-            purged_memory.drop('scaffolds', axis=1, inplace=True)
-            self.inception.memory = purged_memory
-        else:
-            return
-
-    @staticmethod
-    def get_scaffold(smiles):
-        # TODO: this function exists - remove redundancy
-        mol = Chem.MolFromSmiles(smiles)
-        if mol:
-            try:
-                scaffold = GetScaffoldForMol(mol)
-                return Chem.MolToSmiles(scaffold)
-            except Exception:
-                return ''
-        else:
-            return ''
