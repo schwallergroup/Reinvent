@@ -15,8 +15,10 @@ conda install -c conda-forge tensorboard
 conda install -c conda-forge tqdm
 conda install -c conda-forge blas=1.0=mkl
 cd reinvent-scoring
+git checkout espsim
 pip install -e .
 cd ..
 cd reinvent-chemistry
+git checkout espsim
 pip install -e .
 cd ..
