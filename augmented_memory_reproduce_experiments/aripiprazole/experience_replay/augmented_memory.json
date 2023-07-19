@@ -20,12 +20,12 @@
       "augmented_memory_mode_collapse_guard": true
     },
     "reinforcement_learning": {
-      "agent": "../../random.prior.new",
+      "agent": "../../Agent.ckpt",
       "batch_size": 64,
       "learning_rate": 0.0001,
       "margin_threshold": 50,
       "n_steps": 500,
-      "prior": "../../random.prior.new",
+      "prior": "../../Agent.ckpt",
       "sigma": 128,
       "optimization_algorithm": "augmented_memory",
       "specific_algorithm_parameters": {
