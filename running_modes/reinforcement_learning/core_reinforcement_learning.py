@@ -26,6 +26,8 @@ from running_modes.utils.general import to_tensor
 from reinvent_chemistry.conversions import Conversions
 from copy import deepcopy
 
+import pandas as pd
+
 
 class CoreReinforcementRunner(BaseRunningMode):
 
@@ -56,12 +58,19 @@ class CoreReinforcementRunner(BaseRunningMode):
         # SMILES randomization functions from reinvent-chemistry
         self._chemistry = Conversions()
 
+        # track the sampling as a function of oracle calls
+        self.oracle_tracker = pd.DataFrame({'step': [],
+                                            'oracle_calls': [],
+                                            'total_score': [],
+                                            'smiles': []})
+
     def run(self):
         self._logger.log_message("starting an RL run")
         start_time = time.time()
         self._disable_prior_gradients()
 
         if (self.optimization_algorithm == "augmented_memory") or (self.optimization_algorithm == "reinvent"):
+            oracle_calls = 0
             for step in range(self.config.n_steps):
                 seqs, smiles, agent_likelihood = self._sample_unique_sequences(self._agent, self.config.batch_size)
                 # switch signs
@@ -69,6 +78,18 @@ class CoreReinforcementRunner(BaseRunningMode):
                 prior_likelihood = -self._prior.likelihood(seqs)
                 score_summary: FinalSummary = self._scoring_function.get_final_score_for_step(smiles, step)
                 score = self._diversity_filter.update_score(score_summary, step)
+
+                if oracle_calls >= 5000:
+                    print('----- Oracle Budget Reached -----\nEnding Run')
+                    break
+
+                # track oracle calls based on valid indices as invalid SMILES are discarded
+                oracle_calls += len(score_summary.valid_idxs)
+
+                self.update_oracle_tracker(step=step,
+                                           oracle_calls=oracle_calls,
+                                           total_score=score,
+                                           smiles=smiles)
 
                 augmented_likelihood = prior_likelihood + self.config.sigma * to_tensor(score)
                 loss = torch.pow((augmented_likelihood - agent_likelihood), 2)
@@ -108,6 +129,8 @@ class CoreReinforcementRunner(BaseRunningMode):
             self._logger.save_final_state(self._agent, self._diversity_filter)
             self._logger.log_out_input_configuration()
             self._logger.log_out_inception(self._inception)
+
+            self.write_out_oracle_tracker()
 
         elif self.optimization_algorithm == "augmented_hill_climbing" or self.optimization_algorithm == "ahc":
             # original code-base: https://github.com/MorganCThomas/SMILES-RNN/blob/main/model/RL.py
@@ -285,4 +308,16 @@ class CoreReinforcementRunner(BaseRunningMode):
                 scores[idx] = self._diversity_filter._penalize_score(scaffold, scores[idx])
 
         return scores
+
+    def update_oracle_tracker(self, step: int, oracle_calls: int, total_score: np.array, smiles: np.array):
+        step = list(np.full_like(smiles, step))
+        oracle_calls = list(np.full_like(smiles, oracle_calls))
+        total_score = list(total_score)
+        smiles = list(smiles)
+
+        df = pd.DataFrame({"step": step, "oracle_calls": oracle_calls, "total_score": total_score, "smiles": smiles})
+        self.oracle_tracker = pd.concat([self.oracle_tracker, df])
+
+    def write_out_oracle_tracker(self):
+        self.oracle_tracker.to_csv('oracle_tracker.csv')
 
