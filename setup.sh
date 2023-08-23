@@ -1,11 +1,10 @@
-conda create -n augmented_memory python=3.10
-conda activate augmented_memory
+conda create -n augmented_memory_no_pathos python=3.10
+conda activate augmented_memory_no_pathos
 conda install -c conda-forge rdkit
 conda install morfeus-ml -c conda-forge
 conda install -c conda-forge openbabel
 conda install -c conda-forge xtb-python
 pip install reinvent-models==0.0.15rc1
-conda install -c conda-forge pathos
 conda install -c anaconda requests
 conda install -c openeye openeye-toolkits
 conda install -c conda-forge pydantic
@@ -14,9 +13,3 @@ pip install dacite
 conda install -c conda-forge tensorboard
 conda install -c conda-forge tqdm
 conda install -c conda-forge blas=1.0=mkl
-cd reinvent-scoring
-pip install -e .
-cd ..
-cd reinvent-chemistry
-pip install -e .
-cd ..
