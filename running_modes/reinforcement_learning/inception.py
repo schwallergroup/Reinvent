@@ -85,5 +85,3 @@ class Inception:
             return randomized_smiles_list, scores, prior_likelihood
         else:
             return [], [], []
-
-

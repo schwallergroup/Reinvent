@@ -15,7 +15,11 @@ from running_modes.automated_curriculum_learning.curriculum_strategy.base_curric
     BaseCurriculumStrategy
 from running_modes.automated_curriculum_learning.dto import SampledBatchDTO, CurriculumOutcomeDTO, TimestepDTO
 
+
 import pandas as pd
+from copy import deepcopy
+from rdkit import Chem
+from rdkit.Chem.Scaffolds.MurckoScaffold import GetScaffoldForMol
 
 
 class ReinventCurriculumStrategy(BaseCurriculumStrategy):
@@ -46,11 +50,11 @@ class ReinventCurriculumStrategy(BaseCurriculumStrategy):
         score, score_summary = self._scoring(scoring_function, sampled.smiles, step)
         # 3. Updating
         agent_likelihood, prior_likelihood, augmented_likelihood = self._updating(sampled, score, self.inception, agent)
-        # 4. Run Augmented Memory
+        # 4. Augment SMILES and update Agent again
         if self.augmented_memory:
             # purge memory first
             if self.selective_memory_purge:
-                self.inception.selective_memory_purge(sampled.smiles, score)
+                self._selective_memory_purge(sampled.smiles, score)
             for _ in range(self.augmentation_rounds):
                 agent_likelihood, prior_likelihood, augmented_likelihood = self._updating_augmented(agent, score, sampled.smiles, self.inception, self._prior, self.augmented_memory)
         # 5. Logging
@@ -91,4 +95,38 @@ class ReinventCurriculumStrategy(BaseCurriculumStrategy):
         self._logger.save_merging_state(agent, self._diversity_filter, name=memory_name)
         self._diversity_filter = DiversityFilter(self._parameters.diversity_filter)
 
+    @staticmethod
+    def _initialize_augmented_smiles_tracker(initial_smiles):
+        augmented_smiles_tracker = {}
+        for smiles in initial_smiles:
+            augmented_smiles_tracker[smiles] = []
+
+        return augmented_smiles_tracker
+
+    def _selective_memory_purge(self, smiles, score):
+        # TODO: move this to inception and implement it in CL
+        zero_score_indices = np.where(score == 0.)[0]
+        if len(zero_score_indices) > 0:
+            smiles_to_purge = smiles[zero_score_indices]
+            scaffolds_to_purge = [self.get_scaffold(smiles) for smiles in smiles_to_purge]
+            purged_memory = deepcopy(self.inception.memory)
+            purged_memory['scaffolds'] = purged_memory['smiles'].apply(self.get_scaffold)
+            purged_memory = purged_memory.loc[~purged_memory['scaffolds'].isin(scaffolds_to_purge)]
+            purged_memory.drop('scaffolds', axis=1, inplace=True)
+            self.inception.memory = purged_memory
+        else:
+            return
+
+    @staticmethod
+    def get_scaffold(smiles):
+        # TODO: this function exists - remove redundancy
+        mol = Chem.MolFromSmiles(smiles)
+        if mol:
+            try:
+                scaffold = GetScaffoldForMol(mol)
+                return Chem.MolToSmiles(scaffold)
+            except Exception:
+                return ''
+        else:
+            return ''
 

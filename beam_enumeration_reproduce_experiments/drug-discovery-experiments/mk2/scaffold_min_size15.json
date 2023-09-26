@@ -1,0 +1,94 @@
+{
+  "logging": {
+    "logging_frequency": 1000,
+    "recipient": "local",
+    "logging_path": "scaffold_min_size15.log",
+    "result_folder": "scaffold_min_size15_results"
+  },
+  "model_type": "default",
+  "parameters": {
+    "diversity_filter": {
+      "minscore": 0.0,
+      "minsimilarity": 0.4,
+      "name": "IdenticalMurckoScaffold",
+      "nbmax": 10
+    },
+    "inception": {
+      "memory_size": 100,
+      "sample_size": 10,
+      "smiles": [],
+      "augmented_memory_mode_collapse_guard": false
+    },
+    "reinforcement_learning": {
+      "agent": "../../random.prior.new",
+      "batch_size": 64,
+      "learning_rate": 0.0001,
+      "margin_threshold": 50,
+      "n_steps": 1000000,
+      "oracle_limit": 5000,
+      "prior": "../../random.prior.new",
+      "sigma": 128,
+      "optimization_algorithm": "augmented_memory",
+      "augmented_memory": true,
+      "augmentation_rounds": 2,
+      "selective_memory_purge": true
+    },
+    "beam_enumeration": {
+      "execute_beam_enumeration": true,
+      "beam_k": 2,
+      "beam_steps": 18,
+      "substructure_type": "scaffold",
+      "structure_min_size": 15,
+      "pool_size": 4,
+      "pool_saving_frequency": 1000,
+      "patience": 5,
+      "token_sampling_method": "topk",
+      "patience_filter_limit": 50000
+    },
+    "scoring_function": {
+      "name": "custom_product",
+      "parallel": false,
+      "parameters": [
+        {
+          "component_type": "dockstream",
+          "name": "Vina 3kc3",
+          "specific_parameters": {
+            "transformation": {
+		    "transformation_type": "reverse_sigmoid",
+		    "low": -16,
+		    "high": -1,
+		    "k": 0.25
+		   },
+	    "configuration_path": "docking.json",
+	    "docker_script_path": "<DockStream directory>/docker.py",
+	    "environment_path": "<DockStream conda environment directory>/bin/python"
+          },
+          "weight": 1
+        },
+        {
+	  "component_type": "molecular_weight",
+	  "name": "MW",
+	  "specific_parameters": {
+            "transformation": {
+                    "transformation_type": "double_sigmoid",
+                    "low": 0,
+                    "high": 500,
+                    "coef_div": 500,
+		    "coef_si": 250,
+		    "coef_se": 250
+                   }
+	    },
+	    "weight": 1
+	},
+        {
+        "component_type": "qed_score",
+        "name": "qed",
+        "specific_parameters": {},
+        "weight": 1
+        }
+      ]
+    }
+  },
+  "run_type": "reinforcement_learning",
+  "version": 3
+}

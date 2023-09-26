@@ -1,6 +1,6 @@
-# -------------------------------------------------------------------------------------------------------------
-# this file has been modified from https://github.com/MolecularAI/Reinvent for Augmented Memory implementation
-# -------------------------------------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------------------------------------------------
+# this file has been modified from https://github.com/schwallergroup/augmented_memory for Beam Enumeration implementation
+# -----------------------------------------------------------------------------------------------------------------------
 
 import time
 
@@ -17,6 +17,7 @@ from reinvent_scoring.scoring.diversity_filters.reinvent_core.base_diversity_fil
 from reinvent_scoring.scoring.function.base_scoring_function import BaseScoringFunction
 
 from running_modes.configurations import ReinforcementLearningConfiguration
+from running_modes.configurations import BeamEnumerationConfiguration
 from running_modes.constructors.base_running_mode import BaseRunningMode
 from running_modes.reinforcement_learning.inception import Inception
 from running_modes.reinforcement_learning.logging.base_reinforcement_logger import BaseReinforcementLogger
@@ -26,11 +27,15 @@ from running_modes.utils.general import to_tensor
 from reinvent_chemistry.conversions import Conversions
 from copy import deepcopy
 
+from running_modes.beam_enumeration.beam_enumeration import BeamEnumeration
+from running_modes.beam_enumeration.oracle_tracker import OracleTracker
+
 
 class CoreReinforcementRunner(BaseRunningMode):
 
     def __init__(self, critic: GenerativeModelBase, actor: GenerativeModelBase,
                  configuration: ReinforcementLearningConfiguration,
+                 beam_configuration: BeamEnumerationConfiguration, 
                  scoring_function: BaseScoringFunction, diversity_filter: BaseDiversityFilter,
                  inception: Inception, logger: BaseReinforcementLogger):
         self._prior = critic
@@ -38,6 +43,7 @@ class CoreReinforcementRunner(BaseRunningMode):
         self._scoring_function = scoring_function
         self._diversity_filter = diversity_filter
         self.config = configuration
+        self.beam_config = beam_configuration
         self._logger = logger
         self._inception = inception
         self._margin_guard = MarginGuard(self)
@@ -56,6 +62,21 @@ class CoreReinforcementRunner(BaseRunningMode):
         # SMILES randomization functions from reinvent-chemistry
         self._chemistry = Conversions()
 
+        # Oracle Tracker
+        self.oracle_tracker = OracleTracker(oracle_limit=configuration.oracle_limit)
+
+        # Beam Enumeration
+        self.execute_beam_enumeration = self.beam_config.execute_beam_enumeration
+        self.beam_enumeration = BeamEnumeration(k=self.beam_config.beam_k,
+                                                beam_steps=self.beam_config.beam_steps,
+                                                substructure_type=self.beam_config.substructure_type.lower(),
+                                                substructure_min_size=self.beam_config.structure_min_size,
+                                                pool_size=self.beam_config.pool_size,
+                                                pool_saving_frequency=self.beam_config.pool_saving_frequency,
+                                                patience=self.beam_config.patience,
+                                                token_sampling_method=self.beam_config.token_sampling_method,
+                                                filter_patience_limit=self.beam_config.filter_patience_limit)
+        
     def run(self):
         self._logger.log_message("starting an RL run")
         start_time = time.time()
@@ -63,12 +84,42 @@ class CoreReinforcementRunner(BaseRunningMode):
 
         if (self.optimization_algorithm == "augmented_memory") or (self.optimization_algorithm == "reinvent"):
             for step in range(self.config.n_steps):
+
+                if self.oracle_tracker.budget_exceeded():
+                    if self.execute_beam_enumeration:
+                        self.beam_enumeration.end_actions(oracle_calls=self.oracle_tracker.oracle_calls)
+                    break
+
                 seqs, smiles, agent_likelihood = self._sample_unique_sequences(self._agent, self.config.batch_size)
+                # substructure filtering
+                if (self.execute_beam_enumeration) and len(self.beam_enumeration.pool) != 0:
+                    seqs, smiles, agent_likelihood = self.beam_enumeration.filter_batch(seqs, smiles, agent_likelihood)
+
+                # in case no SMILES in the sampled batch contain the Beam substructures
+                if len(smiles) == 0:
+                    self.beam_enumeration.filtered_epoch_updates()
+                    if self.beam_enumeration.patience_limit_reached():
+                        print(f'----- Low probability substructures: ending run based on user-specified patience limit: {self.beam_enumeration.filter_patience_limit} NOTE: this is not an indication of the experiment failing. -----')
+                        break
+                    continue
+
+                score_summary: FinalSummary = self._scoring_function.get_final_score_for_step(smiles, step)
+                score = self._diversity_filter.update_score(score_summary, step)
+
+                self.oracle_tracker.epoch_updates(num_valid_smiles=len(score_summary.valid_idxs),
+                                                  epoch=step,
+                                                  reward=score,
+                                                  smiles=smiles)
+                
+                if self.execute_beam_enumeration:
+                    self.beam_enumeration.epoch_updates(agent=self._agent,
+                                                        num_valid_smiles=len(score_summary.valid_idxs),
+                                                        reward=score.mean(),
+                                                        oracle_calls=self.oracle_tracker.oracle_calls)
+
                 # switch signs
                 agent_likelihood = -agent_likelihood
                 prior_likelihood = -self._prior.likelihood(seqs)
-                score_summary: FinalSummary = self._scoring_function.get_final_score_for_step(smiles, step)
-                score = self._diversity_filter.update_score(score_summary, step)
 
                 augmented_likelihood = prior_likelihood + self.config.sigma * to_tensor(score)
                 loss = torch.pow((augmented_likelihood - agent_likelihood), 2)
@@ -113,9 +164,35 @@ class CoreReinforcementRunner(BaseRunningMode):
             # original code-base: https://github.com/MorganCThomas/SMILES-RNN/blob/main/model/RL.py
             # original paper: https://jcheminf.biomedcentral.com/articles/10.1186/s13321-022-00646-z
             for step in range(self.config.n_steps):
+
+                if self.oracle_tracker.budget_exceeded():
+                    if self.execute_beam_enumeration:
+                        self.beam_enumeration.end_actions(oracle_calls=self.oracle_tracker.oracle_calls)
+                    break
+        
                 seqs, smiles, agent_likelihood = self._sample_unique_sequences(self._agent, self.config.batch_size)
+                # substructure filtering
+                if (self.execute_beam_enumeration) and len(self.beam_enumeration.pool) != 0:
+                    seqs, smiles, agent_likelihood = self.beam_enumeration.filter_batch(seqs, smiles, agent_likelihood)
+
+                # in case no SMILES in the sampled batch contain the Beam substructures
+                if len(smiles) == 0:
+                    continue
+
                 score_summary: FinalSummary = self._scoring_function.get_final_score_for_step(smiles, step)
                 score = self._diversity_filter.update_score(score_summary, step)
+
+                self.oracle_tracker.epoch_updates(num_valid_smiles=len(score_summary.valid_idxs),
+                                                  epoch=step,
+                                                  reward=score,
+                                                  smiles=smiles)
+                
+                if self.execute_beam_enumeration:
+                    self.beam_enumeration.epoch_updates(agent=self._agent,
+                                                        num_valid_smiles=len(score_summary.valid_idxs),
+                                                        reward=score.mean(),
+                                                        oracle_calls=self.oracle_tracker.oracle_calls)
+                    
                 tensor_score = torch.tensor(score)
                 sscore, sscore_idxs = tensor_score.sort(descending=True)
 
@@ -152,11 +229,27 @@ class CoreReinforcementRunner(BaseRunningMode):
             self.best_score_summary = None
 
             for step in range(self.config.n_steps):
+
+                if self.oracle_tracker.budget_exceeded():
+                    if self.execute_beam_enumeration:
+                        self.beam_enumeration.end_actions(oracle_calls=self.oracle_tracker.oracle_calls)
+                    break
+
                 # sample batch from current Agent
                 seqs, smiles, agent_likelihood = self._sample_unique_sequences(self._agent, self.config.batch_size)
 
                 # sample batch from best Agent
                 best_seqs, best_smiles, best_agent_likelihood = self._sample_unique_sequences(self.best_agent, self.config.batch_size)
+
+                # substructure filtering
+                # NOTE: both the current Agent and best Agent SMILES are filtered
+                if (self.execute_beam_enumeration) and len(self.beam_enumeration.pool) != 0:
+                    seqs, smiles, agent_likelihood = self.beam_enumeration.filter_batch(seqs, smiles, agent_likelihood)
+                    best_seqs, best_smiles, best_agent_likelihood = self.beam_enumeration.filter_batch(best_seqs, best_smiles, best_agent_likelihood)
+
+                # in case no SMILES in the sampled batch contain the Beam substructures
+                if len(smiles) == 0:
+                    continue
 
                 # score current Agent SMILES
                 score_summary: FinalSummary = self._scoring_function.get_final_score_for_step(smiles, step)
@@ -165,6 +258,19 @@ class CoreReinforcementRunner(BaseRunningMode):
                 # score best Agent SMILES
                 best_score_summary: FinalSummary = self._scoring_function.get_final_score_for_step(best_smiles, step)
                 best_score = self._diversity_filter.update_score(best_score_summary, step)
+
+                # log both current Agent and best Agent valid SMILES
+                self.oracle_tracker.epoch_updates(num_valid_smiles=(len(score_summary.valid_idxs) + len(best_score_summary.valid_idxs)),
+                                                  epoch=step,
+                                                  reward=score,
+                                                  smiles=smiles)
+
+                # log *only* the current Agent valid SMILES to interrogate the current Agent's self-conditioning behaviour
+                if self.execute_beam_enumeration:
+                    self.beam_enumeration.epoch_updates(agent=self._agent,
+                                                        num_valid_smiles=len(score_summary.valid_idxs),
+                                                        reward=score.mean(),
+                                                        oracle_calls=self.oracle_tracker.oracle_calls)
 
                 # compute loss between Prior and current Agent
                 agent_likelihood = -agent_likelihood
@@ -254,6 +360,7 @@ class CoreReinforcementRunner(BaseRunningMode):
             exp_agent_likelihood = -agent.likelihood_smiles(exp_smiles)
             exp_augmented_likelihood = exp_prior_likelihood + self.config.sigma * exp_scores
             exp_loss = torch.pow((to_tensor(exp_augmented_likelihood) - exp_agent_likelihood), 2)
+
             loss = torch.cat((loss, exp_loss), 0)
             agent_likelihood = torch.cat((agent_likelihood, exp_agent_likelihood), 0)
 
@@ -285,4 +392,3 @@ class CoreReinforcementRunner(BaseRunningMode):
                 scores[idx] = self._diversity_filter._penalize_score(scaffold, scores[idx])
 
         return scores
-

@@ -43,7 +43,7 @@ class ReinforcementLearningModeConstructor:
             diversity_filter = DiversityFilter(config.diversity_filter)
             scoring_function = ScoringFunctionFactory(config.scoring_function)
             inception = Inception(config.inception, scoring_function, prior)
-            runner = CoreReinforcementRunner(prior, actor, config.reinforcement_learning,
+            runner = CoreReinforcementRunner(prior, actor, config.reinforcement_learning, config.beam_enumeration,
                                              scoring_function, diversity_filter, inception, logger)
 
         elif self._configuration.model_type == model_type_enum.LIB_INVENT:

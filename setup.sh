@@ -14,9 +14,11 @@ pip install dacite
 conda install -c conda-forge tensorboard
 conda install -c conda-forge tqdm
 conda install -c conda-forge blas=1.0=mkl
-cd reinvent-scoring
+git clone https://github.com/schwallergroup/reinvent-chemistry.git
+cd reinvent-chemistry
 pip install -e .
 cd ..
-cd reinvent-chemistry
+git clone https://github.com/schwallergroup/reinvent-scoring.git
+cd reinvent-scoring
 pip install -e .
 cd ..

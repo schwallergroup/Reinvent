@@ -6,3 +6,4 @@ from running_modes.configurations.create_model import *
 from running_modes.configurations.compound_sampling import *
 from running_modes.configurations.general_configuration_envelope import *
 from running_modes.configurations.automated_curriculum_learning import *
+from running_modes.configurations.beam_enumeration import *

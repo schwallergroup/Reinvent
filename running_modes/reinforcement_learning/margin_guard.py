@@ -24,9 +24,6 @@ class MarginGuard:
 
     def adjust_margin(self, step: int) -> None:
         if step == self.margin_window:
-            if len(self._run_stats) < self.margin_window:
-                raise Exception(f"self._run_stats has {len(self._run_stats)} elements. Consider storing all stats!")
-
             if self._is_margin_below_threshold():
                 self.runner.config.sigma = self._increased_sigma()
                 self._reset()
