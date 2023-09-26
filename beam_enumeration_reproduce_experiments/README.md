@@ -4,15 +4,15 @@ Beam Enumeration (reproducing all experiments)
 
 `Beam Enumeration` builds on `Augmented Memory` and thus shares similarities in the codebase.
 
-In the paper, 2 experiments were performed and instructions to reproduce them are presented below. The first thing required is to install the conda environment. Run the following command in the parent directory. We use the same `conda` environment as `Augmented Memory` but change the name to `beam_enumeration` for the purpose of anonymous code release.
+In the paper, 2 experiments were performed and instructions to reproduce them are presented below. The first thing required is to install the conda environment. Run the following command in the parent directory. The `conda` environment is the same as `Augmented Memory`.
 
 `source setup.py`
 
-this will create a conda environment called `beam_enumeration`.
+this will create a conda environment called `augmented_memory`.
 
 `Beam Enumeration` is a task-agnostic method that can be added directly on language-based molecular generative models. In the paper, we build on top of `Augmented Memory`. Therefore, executing `Beam Enumeration` with `Augmented Memory` follows the same procedure: passing a configuration JSON to `input.py`. All JSONs to reproduce the experiments in the Beam Enumeration paper are provided in this folder. The only thing required is to change save paths in the JSONs. Once the configuation JSON is ready, all experiments can be run with the following command:
 
-`beam_enumeration/input.py <path to configuration JSON>`
+`augmented_memory/input.py <path to configuration JSON>`
 
 All experiments can be visualized through Tensorboard which is installed in the `beam_enumeration` environment. All experiments output a `.log` file and can be visualized via the following command:
 
