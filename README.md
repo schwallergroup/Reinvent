@@ -1,11 +1,16 @@
+## Note
 
+**This repository will no longer be updated** - check out [Saturn](https://github.com/schwallergroup/saturn) which features minimal
+implementations of Augmented Memory and Beam Enumeration and has much better sample efficiency.
+
+[Saturn Pre-print](https://arxiv.org/abs/2405.17066)
 
 Augmented Memory (Built on REINVENT) and Beam Enumeration
 =================================================================================================================
 
-[Augmented Memory pre-print](https://chemrxiv.org/engage/chemrxiv/article-details/646a353da32ceeff2d014776)
+[Augmented Memory Paper](https://pubs.acs.org/doi/10.1021/jacsau.4c00066)
 
-[Beam Enumeration pre-print](https://arxiv.org/abs/2309.13957)
+[Beam Enumeration Paper](https://arxiv.org/abs/2309.13957)
 
 Installation
 -------------
